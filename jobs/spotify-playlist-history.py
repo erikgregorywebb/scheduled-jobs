@@ -22,6 +22,10 @@ auth_response = requests.post(AUTH_URL, {
 auth_response_data = auth_response.json()
 access_token = auth_response_data['access_token']
 
+# get current date and datetime
+current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+
 # define function
 def get_playlist_tracks(playlist_name, playlist_id):
 
@@ -34,9 +38,6 @@ def get_playlist_tracks(playlist_name, playlist_id):
     # GET request with proper header
     r = requests.get(BASE_URL + 'playlists/' + playlist_id + '/tracks', headers=headers)
     content = r.json()
-
-    # get current datetime
-    current_datetime = datetime.datetime.now()
 
     # extract data elements
     rows = []
