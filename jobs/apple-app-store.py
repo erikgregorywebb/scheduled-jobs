@@ -3,7 +3,8 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
 import boto3
-import io
+from io import StringIO
+import os 
 
 # get current date and datetime
 current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
