@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
 import boto3
-from io import StringIO
+import io
 
 # get current date and datetime
 current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -26,9 +26,13 @@ for item in soup.find_all(class_="we-lockup--in-app-shelf"):
 df = pd.DataFrame(items)
 df.columns = ['label', 'link', 'scraped_at']
 
+# get environmental variables
+AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
+AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
+
 # copy to s3
 # https://stackoverflow.com/questions/38154040/save-dataframe-to-csv-directly-to-s3-python
-s3 = boto3.client('s3', aws_access_key_id= '${{ secrets.AWS_ACCESS_KEY_ID }}', aws_secret_access_key = '${{ secrets.AWS_SECRET_ACCESS_KEY }}')
+s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
 def copy_to_s3(client, df, bucket, filepath):
     csv_buf = StringIO()
     df.to_csv(csv_buf, header=True, index=False)
