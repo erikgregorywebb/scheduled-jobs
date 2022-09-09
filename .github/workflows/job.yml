@@ -31,4 +31,4 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: | 
           python jobs/apple-app-store.py
-          python freddie-mac-rates.py
+          python jobs/freddie-mac-rates.py
