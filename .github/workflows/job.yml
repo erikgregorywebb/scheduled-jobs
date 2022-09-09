@@ -25,5 +25,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
-      - name: execute py script
-        run: python apple-app-store.py
+      - name: execute apple app store scraper py script
+        run: python jobs/apple-app-store.py
