@@ -32,7 +32,4 @@ jobs:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
         run: | 
-          python jobs/apple-app-store.py
-          python jobs/freddie-mac-rates.py
-          python jobs/spotify-playlist-history.py
           python jobs/mormon-reddit.py
