@@ -37,4 +37,7 @@ jobs:
           PRAW_USERNAME: ${{ secrets.PRAW_USERNAME }}
           PRAW_PASSWORD: ${{ secrets.PRAW_PASSWORD }}
         run: | 
+          python jobs/apple-app-store.py
+          python jobs/freddie-mac-rates.py
+          python jobs/spotify-playlist-history.py
           python jobs/mormon-reddit.py
