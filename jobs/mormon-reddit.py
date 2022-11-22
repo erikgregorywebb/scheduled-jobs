@@ -8,7 +8,7 @@ import os
 # get environmental variables
 AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
 AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-PRAW_CLIENT_ID = 'BsITWfeix2KUTw' # os.environ['PRAW_CLIENT_ID']
+PRAW_CLIENT_ID = os.environ['PRAW_CLIENT_ID']
 PRAW_CLIENT_SECRET = os.environ['PRAW_CLIENT_SECRET']
 PRAW_USER_AGENT = os.environ['PRAW_USER_AGENT']
 PRAW_USERNAME = os.environ['PRAW_USERNAME']
