@@ -5,11 +5,18 @@ import boto3
 from io import StringIO
 import os
 
+# get environmental variables
+AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
+AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
+PRAW_CLIENT_ID = os.environ['PRAW_CLIENT_ID']
+PRAW_CLIENT_SECRET = os.environ['PRAW_CLIENT_SECRET']
+PRAW_USER_AGENT = os.environ['PRAW_USER_AGENT']
+PRAW_USERNAME = os.environ['PRAW_USERNAME']
+PRAW_PASSWORD = os.environ['PRAW_PASSWORD']
+
 # create authorized instance
-reddit = praw.Reddit(client_id = os.environ['PRAW_CLIENT_ID'],
-                     client_secret = os.environ['PRAW_CLIENT_SECRET'],
-                     user_agent = os.environ['PRAW_USER_AGENT'],
-                     username = os.environ['PRAW_USERNAME'], password = os.environ['PRAW_PASSWORD'])
+reddit = praw.Reddit(client_id = PRAW_CLIENT_ID, client_secret = PRAW_CLIENT_SECRET, 
+                     user_agent = PRAW_USER_AGENT, username = PRAW_USERNAME, password = PRAW_PASSWORD)
                      
 # get current date and datetime
 current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -33,10 +40,6 @@ for submission in reddit.subreddit('mormon+exmormon+latterdaysaints').new(limit 
 # create dataframe
 df = pd.DataFrame(rows)
 df.columns = ['submission_id', 'created_utc', 'title', 'author', 'permalink', 'num_comments', 'score', 'upvote_ratio', 'subreddit_name', 'datetime']
-
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
 
 # copy to s3
 # https://stackoverflow.com/questions/38154040/save-dataframe-to-csv-directly-to-s3-python
