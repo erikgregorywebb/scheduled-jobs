@@ -38,7 +38,7 @@ for submission in reddit.subreddit('mormon+exmormon+latterdaysaints').new(limit 
     score = submission.score
     upvote_ratio = submission.upvote_ratio
     subreddit_name = submission.subreddit.display_name
-    rows.append([id, created_utc, title, author, permalink, num_comments, score, upvote_ratio, subreddit_name, current_datetime])
+    rows.append([submission_id, created_utc, title, author, permalink, num_comments, score, upvote_ratio, subreddit_name, current_datetime])
     
 # create dataframe
 df = pd.DataFrame(rows)
