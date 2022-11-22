@@ -20,7 +20,10 @@ items = []
 for grid in soup.find_all(class_="rate grid-x"):
     name = grid.find(class_="name").text
     rate = grid.find(class_="rate-percent").text
-    fees = grid.find(class_="fees").text
+    try:
+        fees = grid.find(class_="fees").text
+    except:
+        fees = "Fee not displayed"
     item = [name, rate, fees, current_datetime]
     items.append(item)
 
