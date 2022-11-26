@@ -16,8 +16,7 @@ PRAW_PASSWORD = os.environ['PRAW_PASSWORD']
 
 # create authorized instance
 reddit = praw.Reddit(client_id = PRAW_CLIENT_ID, client_secret = PRAW_CLIENT_SECRET, 
-                     user_agent = PRAW_USER_AGENT, username = PRAW_USERNAME, password = PRAW_PASSWORD)
-print('that worked')                    
+                     user_agent = PRAW_USER_AGENT, username = PRAW_USERNAME, password = PRAW_PASSWORD)                  
  
 # get current date and datetime
 current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -27,11 +26,9 @@ print(current_datetime_label)
 # get 250 newest submissions for the three "mormon" subreddits
 rows = []
 for submission in reddit.subreddit('mormon+exmormon+latterdaysaints').new(limit = 250):
-    # capture comment data
     submission_id = submission.id
     created_utc = submission.created_utc
     title = submission.title
-    print(title)
     author = submission.author
     permalink = submission.permalink
     num_comments = submission.num_comments
