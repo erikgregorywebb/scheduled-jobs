@@ -1,6 +1,9 @@
 import requests
 import pandas as pd
 from datetime import datetime
+import boto3
+from io import StringIO
+import os
 
 # get environmental variables
 AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
