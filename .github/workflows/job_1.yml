@@ -36,8 +36,11 @@ jobs:
           PRAW_USER_AGENT: ${{ secrets.PRAW_USER_AGENT }}
           PRAW_USERNAME: ${{ secrets.PRAW_USERNAME }}
           PRAW_PASSWORD: ${{ secrets.PRAW_PASSWORD }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          
         run: | 
           python jobs/apple-app-store.py
           python jobs/freddie-mac-rates.py
           python jobs/spotify-playlist-history.py
           python jobs/mormon-reddit-submissions.py
+          python jobs/newsapi-top-headlines.py
