@@ -40,16 +40,16 @@ for sub in subs:
           subreddit_name = comment.subreddit.display_name
           rows.append([comment_id, created_utc, body, author, permalink, link_id, score, submission_id, subreddit_name, current_datetime])
        except:
-          comment_id = comment.id
-          created_utc = None
-          body = None
-          author = None
-          permalink = None
-          link_id = None
-          score = None
-          submission_id = None
-          subreddit_name = None
-          rows.append([comment_id, created_utc, body, author, permalink, link_id, score, submission_id, subreddit_name, current_datetime])
+           comment_id = comment.id
+           created_utc = None
+           body = None
+           author = None
+           permalink = None
+           link_id = None
+           score = None
+           submission_id = None
+           subreddit_name = None
+           rows.append([comment_id, created_utc, body, author, permalink, link_id, score, submission_id, subreddit_name, current_datetime])
           
 # create dataframe
 df = pd.DataFrame(rows)
