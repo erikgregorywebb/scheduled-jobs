@@ -28,17 +28,29 @@ rows = []
 subs = ['mormon', 'exmormon', 'latterdaysaints']
 for sub in subs:
     for comment in reddit.subreddit(sub).comments(limit = 250):
-        comment_id = comment.id
-        created_utc = comment.created_utc
-        body = comment.body
-        author = comment.author.name
-        permalink = comment.permalink
-        link_id = comment.link_id
-        score = comment.score
-        submission_id = comment.submission.id
-        subreddit_name = comment.subreddit.display_name
-        rows.append([comment_id, created_utc, body, author, permalink, link_id, score, submission_id, subreddit_name, current_datetime])
-
+        try:
+          comment_id = comment.id
+          created_utc = comment.created_utc
+          body = comment.body
+          author = comment.author.name
+          permalink = comment.permalink
+          link_id = comment.link_id
+          score = comment.score
+          submission_id = comment.submission.id
+          subreddit_name = comment.subreddit.display_name
+          rows.append([comment_id, created_utc, body, author, permalink, link_id, score, submission_id, subreddit_name, current_datetime])
+       except:
+          comment_id = comment.id
+          created_utc = None
+          body = None
+          author = None
+          permalink = None
+          link_id = None
+          score = None
+          submission_id = None
+          subreddit_name = None
+          rows.append([comment_id, created_utc, body, author, permalink, link_id, score, submission_id, subreddit_name, current_datetime])
+          
 # create dataframe
 df = pd.DataFrame(rows)
 df.columns = ['comment_id', 'created_utc', 'body', 'author', 'permalink', 'link_id', 'score', 'submission_id', 'subreddit_name', 'datetime']
