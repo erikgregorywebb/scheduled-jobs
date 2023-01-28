@@ -1,0 +1,42 @@
+# tutorial: https://canovasjm.netlify.app/2020/11/29/github-actions-run-a-python-script-on-schedule-and-commit-changes/
+
+name: job_1
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 5 31 2 ?' # https://stackoverflow.com/questions/8324306/a-cron-job-that-will-never-execute
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: checkout repo content
+        uses: actions/checkout@v2 # checkout the repository content to github runner
+
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.7' # install the python version needed
+          
+      - name: install python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: execute py scripts
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          PRAW_CLIENT_ID: ${{ secrets.PRAW_CLIENT_ID }}
+          PRAW_CLIENT_SECRET: ${{ secrets.PRAW_CLIENT_SECRET }}
+          PRAW_USER_AGENT: ${{ secrets.PRAW_USER_AGENT }}
+          PRAW_USERNAME: ${{ secrets.PRAW_USERNAME }}
+          PRAW_PASSWORD: ${{ secrets.PRAW_PASSWORD }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          
+        run: |
+          python jobs/kworb-scrape.py
