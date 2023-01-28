@@ -5,7 +5,7 @@ name: job_1
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 5 31 2 ?' # https://stackoverflow.com/questions/8324306/a-cron-job-that-will-never-execute
+    - cron: '0 0 1 1 *' # https://stackoverflow.com/questions/8324306/a-cron-job-that-will-never-execute
 
 jobs:
   build:
