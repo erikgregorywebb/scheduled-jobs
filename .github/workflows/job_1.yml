@@ -44,3 +44,4 @@ jobs:
           python jobs/spotify-playlist-history.py
           python jobs/mormon-reddit-submissions.py
           python jobs/newsapi-top-headlines.py
+          python jobs/spotify-podcast-charts.py
