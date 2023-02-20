@@ -62,7 +62,7 @@ raw_docs = do.call(rbind, docs_list)
 
 # export 
 # https://medium.com/@som028/how-to-read-and-write-data-from-and-to-s3-bucket-using-r-3fed7e686844
-Sys.setenv("AWS_ACCESS_KEY_ID" = "", "AWS_SECRET_ACCESS_KEY" = "")
+#Sys.setenv("AWS_ACCESS_KEY_ID" = "", "AWS_SECRET_ACCESS_KEY" = "")
 writeToS3 = function(file,bucket,filename){
   s3write_using(file, FUN = write.csv, bucket = bucket, object = filename)
 }
