@@ -14,8 +14,8 @@ parcels = parcels_df %>% pull(`PARCEL NUMBER`) %>% str_replace_all(., '-', '')
 # scrape details
 fields_list = list()
 docs_list = list()
-for (i in 1:10) {
-  Sys.sleep(.1)
+for (i in 1:length(parcels)) {
+  Sys.sleep(.25)
   
   # read page
   url = paste('https://app1.pinal.gov/Search/Parcel-Details.aspx?parcel_ID=', parcels[i], sep = '')
