@@ -14,7 +14,7 @@ parcels = parcels_df %>% pull(`PARCEL NUMBER`) %>% str_replace_all(., '-', '')
 # scrape details
 fields_list = list()
 docs_list = list()
-for (i in 1:length(parcels)) {
+for (i in 1:10) {
   Sys.sleep(1)
   
   # read page
