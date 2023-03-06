@@ -42,22 +42,25 @@ def get_playlist_tracks(playlist_name, playlist_id):
     # extract data elements
     rows = []
     for i, item in enumerate(content['items']):
-        track_playlist_position = i + 1
-        track_name = item['track']['name']
-        track_id = item['track']['id']
-        track_href = item['track']['href']
-        track_release_date = item['track']['album']['release_date']
-        track_added_at = item['added_at']
+        try:
+            track_playlist_position = i + 1
+            track_name = item['track']['name']
+            track_id = item['track']['id']
+            track_href = item['track']['href']
+            track_release_date = item['track']['album']['release_date']
+            track_added_at = item['added_at']
 
-        for j, artist in enumerate(item['track']['artists']):
-            artist_track_position = j + 1
-            artist_name = artist['name']
-            artist_id = artist['id']
-            artist_href = artist['href']
+            for j, artist in enumerate(item['track']['artists']):
+                artist_track_position = j + 1
+                artist_name = artist['name']
+                artist_id = artist['id']
+                artist_href = artist['href']
 
-            row = [playlist_id, playlist_name, current_datetime, track_playlist_position, track_name, track_id, track_href, track_release_date, track_added_at,
-                  artist_track_position, artist_name, artist_id, artist_href]
-            rows.append(row)
+                row = [playlist_id, playlist_name, current_datetime, track_playlist_position, track_name, track_id, track_href, track_release_date, track_added_at,
+                      artist_track_position, artist_name, artist_id, artist_href]
+                rows.append(row)
+        except: 
+            print('Error')
 
     # create pandas dataframe
     playlist_tracks = pd.DataFrame(rows, columns = ['playlist_id', 'playlist_name', 'current_datetime', 'track_playlist_position',
