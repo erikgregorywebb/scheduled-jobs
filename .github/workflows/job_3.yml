@@ -22,11 +22,15 @@ jobs:
         R -e 'install.packages("tidyverse")'
         R -e 'install.packages("rvest")'
         R -e 'install.packages("aws.s3")'
+        R -e 'install.packages("httr")'
+        R -e 'install.packages("jsonlite")'
     
     # Run script
-    - name: run script
+    - name: run scripts
       env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       
-      run: Rscript jobs/gila-buttes-parcels.R
+      run: |
+        Rscript jobs/gila-buttes-parcels.R
+        Rscript jobs/homie-scrape.r
