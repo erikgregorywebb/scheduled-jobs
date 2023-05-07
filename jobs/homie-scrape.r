@@ -1,4 +1,5 @@
 # import packages
+library(tidyverse)
 library(httr)
 library(jsonlite)
 library(aws.s3)
