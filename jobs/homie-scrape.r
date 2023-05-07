@@ -42,10 +42,12 @@ for (i in 1:length(zips)) {
   res <- httr::POST(url = "https://api-searching.azurewebsites.net/api/searching/v1/active-listings", httr::add_headers(.headers=headers), body = zips[i])
   content = rawToChar(res$content) %>% fromJSON()
   df = tibble(content$data)
-  print(nrow(df))
   datalist[[i]] = df
 }
-raw = do.call(rbind, datalist) %>% distinct()
+raw = do.call(rbind, datalist) %>% 
+  distinct() %>%
+  apply(.,2,as.character)
+
 
 # export
 writeToS3 = function(file,bucket,filename){
