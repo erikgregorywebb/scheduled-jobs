@@ -33,3 +33,4 @@ jobs:
       
       run: |
         Rscript jobs/gila-buttes-parcels.R
+        Rscript jobs/lds-meetinghouses.R
