@@ -34,3 +34,4 @@ jobs:
       run: |
         Rscript jobs/gila-buttes-parcels.R
         Rscript jobs/lds-meetinghouses.R
+        Rscript jobs/zillow-scrape.r
