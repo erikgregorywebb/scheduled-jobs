@@ -32,7 +32,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       
       run: |
-        Rscript jobs/gila-buttes-parcels.r
         Rscript jobs/lds-meetinghouses.r
         Rscript jobs/zillow-scrape.r
         Rscript jobs/go-fund-me.r
+        Rscript jobs/gila-buttes-parcels.r
