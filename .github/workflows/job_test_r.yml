@@ -5,7 +5,7 @@ name: job_test_r
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *' # runs at 12:00 UTC everyday
+    - cron: '0 0 1 1 *' # runs at 12:00 UTC everyday
 
 jobs:
   build:
