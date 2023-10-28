@@ -1,6 +1,6 @@
 # tutorial: https://www.rforseo.com/ressources/launch-an-r-script-using-github-actions
 
-name: job_3
+name: job_test_r
 
 on:
   workflow_dispatch:
