@@ -1,5 +1,6 @@
 # import packages
 library(tidyverse)
+library(rvest)
 library(dplyr)
 library(httr)
 library(jsonlite)
