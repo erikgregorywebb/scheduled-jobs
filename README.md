@@ -13,4 +13,6 @@
 | `gila-buttes-parcels.r`  | R  | Daily  | Scrapes details for ~280 parcels in the Gila Buttes subdivision in Casa Grande, Arizona, dumps to S3. | Job 3 |
 | `lds-meetinghouses.r`  | R  | Daily  | Scrapes [LDS meetinghouse](https://ldsmeetinghouses.com/) locations and unit assignments, dumps to S3. | Job 3 |
 | `zillow-scrape.r`  | R  | Daily  | Scrapes [Zillow](https://www.zillow.com/research/data/)'s basic, zipcode-level ZHVF file, dumps to S3. | Job 3 |
+| `go-fund-me.r`  | R  | Daily  | Scrapes [GoFundMe](https://www.gofundme.com/discover)'s trending fundraiser list, dumps to S3. | Job 3 |
+
 
