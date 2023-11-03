@@ -37,6 +37,7 @@ jobs:
           PRAW_USERNAME: ${{ secrets.PRAW_USERNAME }}
           PRAW_PASSWORD: ${{ secrets.PRAW_PASSWORD }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          LAST_FM_API_KEY: ${{ secrets.LAST_FM_API_KEY }}
           
         run: | 
           python jobs/apple-app-store.py
