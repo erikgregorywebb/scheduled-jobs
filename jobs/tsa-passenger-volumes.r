@@ -1,8 +1,6 @@
 # import packages
 library(tidyverse)
-library(dplyr)
-library(httr)
-library(jsonlite)
+library(rvest)
 library(aws.s3)
 
 # get current datetime
