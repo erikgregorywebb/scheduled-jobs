@@ -1,6 +1,6 @@
 # tutorial: https://canovasjm.netlify.app/2020/11/29/github-actions-run-a-python-script-on-schedule-and-commit-changes/
 
-name: job_test
+name: job_test_python
 
 on:
   workflow_dispatch:
@@ -39,4 +39,4 @@ jobs:
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           
         run: |
-          python jobs/kworb-scrape.py
+          python jobs/s3-snapshots.py
