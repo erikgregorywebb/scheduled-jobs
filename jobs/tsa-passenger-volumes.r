@@ -21,5 +21,6 @@ df = table %>%
 ####### EXPORT ####### 
 writeToS3 = function(file,bucket,filename){
   s3write_using(file, FUN = write.csv, bucket = bucket, object = filename)
+  print(paste('Copy ', nrow(df), ' rows to S3 Bucket ', bucket, ' at ', filename, ' Done!'))
 }
 writeToS3(df, 'egw-data-dumps', paste('tsa/tsa-passenger-volumes-' , format(datetime, '%Y-%m-%d-%H-%M-%S'), '.csv', sep = ''))
