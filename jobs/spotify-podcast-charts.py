@@ -17,7 +17,7 @@ categories = ['top', 'arts', 'business', 'comedy', 'education', 'fiction', 'heal
 # define function
 def get_podcast_chart(category):
     url = 'https://podcastcharts.byspotify.com/api/charts/' + category + '?region=us'
-    print(url)
+    #print(url)
     r = requests.get(url)
     rows = []
     for i in r.json():
