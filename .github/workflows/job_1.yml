@@ -46,3 +46,4 @@ jobs:
           python jobs/newsapi-top-headlines.py
           python jobs/spotify-podcast-charts.py
           python jobs/kworb-scrape.py
+          python jobs/s3-snapshots.py
