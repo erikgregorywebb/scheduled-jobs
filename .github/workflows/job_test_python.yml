@@ -1,4 +1,4 @@
-# tutorial: https://canovasjm.netlify.app/2020/11/29/github-actions-run-a-python-script-on-schedule-and-commit-changes/
+last-fm-history.py# tutorial: https://canovasjm.netlify.app/2020/11/29/github-actions-run-a-python-script-on-schedule-and-commit-changes/
 
 name: job_test_python
 
@@ -37,6 +37,7 @@ jobs:
           PRAW_USERNAME: ${{ secrets.PRAW_USERNAME }}
           PRAW_PASSWORD: ${{ secrets.PRAW_PASSWORD }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          LAST_FM_API_KEY: ${{ secrets.LAST_FM_API_KEY }}
           
         run: |
-          python jobs/s3-snapshots.py
+          python jobs/last-fm-history.py
