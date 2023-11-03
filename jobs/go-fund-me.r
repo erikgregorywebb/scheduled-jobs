@@ -19,7 +19,7 @@ datalist = list()
 for (i in 1:length(top_fundraisers)) {
   Sys.sleep(1)
   url = top_fundraisers[i]
-  print(url)
+  #print(url)
   page = read_html(url) 
   title = page %>% html_node('.p-campaign-title') %>% html_text2()
   raised_amount_goal = page %>% html_node('.progress-meter_progressMeterHeading__7dug0') %>% html_text2()
