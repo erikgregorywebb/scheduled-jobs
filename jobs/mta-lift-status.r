@@ -65,7 +65,6 @@ headers = c(
 
 # make call
 r <- httr::GET(url = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2fnyct_ene_equipments.xml", httr::add_headers(.headers=headers))
-rawToChar(r$content)
 
 # read XML content
 xml_data <- read_xml(rawToChar(r$content))
@@ -78,7 +77,7 @@ equipment_list <- map(equipment_nodes, function(node) {
   data <- xml_children(node)
   setNames(map_chr(data, xml_text), xml_name(data))
 })
-subway_lifts <- bind_rows(equipment_list)
+subway_lifts <- bind_rows(equipment_list) %>% tibble()
 
 ####### EXPORT ####### 
 writeToS3 = function(file,bucket,filename){
