@@ -38,6 +38,7 @@ jobs:
           PRAW_PASSWORD: ${{ secrets.PRAW_PASSWORD }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           LAST_FM_API_KEY: ${{ secrets.LAST_FM_API_KEY }}
+          NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
           
         run: | 
           python jobs/apple-app-store.py
@@ -48,4 +49,5 @@ jobs:
           python jobs/spotify-podcast-charts.py
           python jobs/kworb-scrape.py
           python jobs/last-fm-history.py
+          python jobs/nyc-311-requests.py
           python jobs/s3-snapshots.py
