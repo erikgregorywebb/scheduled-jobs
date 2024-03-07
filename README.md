@@ -1,4 +1,4 @@
-## Scheduled Jobs
+# Scheduled Jobs
 
 | Name  | Type | Frequency | Description | Job |
 | ------------- | ------------- | ------------- | ------------- | ------------- |
