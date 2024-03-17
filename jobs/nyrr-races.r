@@ -1,5 +1,6 @@
 library(httr)
 library(tidyverse)
+library(rvest)
 library(jsonlite)
 library(xml2)
 library(aws.s3)
