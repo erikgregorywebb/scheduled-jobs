@@ -37,3 +37,4 @@ jobs:
         Rscript jobs/gila-buttes-parcels.r
         Rscript jobs/tsa-passenger-volumes.r
         Rscript jobs/mta-lift-status.r
+        Rscript jobs/nyrr-races.r
