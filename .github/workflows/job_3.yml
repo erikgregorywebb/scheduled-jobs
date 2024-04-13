@@ -34,5 +34,6 @@ jobs:
       run: |
         Rscript jobs/zillow-scrape.r
         Rscript jobs/go-fund-me.r
-        Rscript jobs/gila-buttes-parcels.r
         Rscript jobs/tsa-passenger-volumes.r
+        Rscript jobs/mta-lift-status.r
+        Rscript jobs/nyrr-races.r
