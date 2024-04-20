@@ -17,3 +17,4 @@ writeToS3 = function(file,bucket,filename){
   s3write_using(file, FUN = write.csv, bucket = bucket, object = filename)
 }
 writeToS3(raw, 'egw-data-dumps', paste('zillow/zhvi-all-homes-zip-code-' , format(datetime, '%Y-%m-%d-%H-%M-%S'), '.csv', sep = ''))
+print(paste('job run: zillow/zhvi-all-homes-zip-code-' , format(datetime, '%Y-%m-%d-%H-%M-%S')))
