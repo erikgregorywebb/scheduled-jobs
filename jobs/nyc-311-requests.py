@@ -29,13 +29,13 @@ response = requests.get(url, params=params)
 # Checking if the request was successful
 if response.status_code == 200:
     data = response.json()
-    print(f"Retrieved {len(data)} records from the dataset!")
+    #print(f"Retrieved {len(data)} records from the dataset!")
 
     # Load the data into a Pandas DataFrame
     df = pd.DataFrame(data)
 
     # Display the first few rows of the DataFrame
-    print(df.head())
+    #print(df.head())
 else:
     print(f"Failed to retrieve data. Status code: {response.status_code}")
     
