@@ -24,18 +24,20 @@ current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 print(current_datetime_label)
 
 # get 250 newest submissions for the three "mormon" subreddits
+subs = ['mormon', 'exmormon', 'latterdaysaints']
 rows = []
-for submission in reddit.subreddit('mormon+exmormon+latterdaysaints').new(limit = 250):
-    submission_id = submission.id
-    created_utc = submission.created_utc
-    title = submission.title
-    author = submission.author
-    permalink = submission.permalink
-    num_comments = submission.num_comments
-    score = submission.score
-    upvote_ratio = submission.upvote_ratio
-    subreddit_name = submission.subreddit.display_name
-    rows.append([submission_id, created_utc, title, author, permalink, num_comments, score, upvote_ratio, subreddit_name, current_datetime])
+for sub in subs:
+    for submission in reddit.subreddit(sub).new(limit = 250):
+        submission_id = submission.id
+        created_utc = submission.created_utc
+        title = submission.title
+        author = submission.author
+        permalink = submission.permalink
+        num_comments = submission.num_comments
+        score = submission.score
+        upvote_ratio = submission.upvote_ratio
+        subreddit_name = submission.subreddit.display_name
+        rows.append([submission_id, created_utc, title, author, permalink, num_comments, score, upvote_ratio, subreddit_name, current_datetime])
     
 # create dataframe
 df = pd.DataFrame(rows)
