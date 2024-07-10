@@ -2,6 +2,8 @@ library(tidyverse)
 library(rvest)
 library(httr)
 library(jsonlite)
+library(xml2)
+library(aws.s3)
 
 datetime = Sys.time()
 
