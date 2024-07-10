@@ -37,3 +37,4 @@ jobs:
         Rscript jobs/mta-lift-status.r
         Rscript jobs/nyrr-races.r
         Rscript jobs/ksl-rentals.r
+        Rscript jobs/travel-advisories.r
