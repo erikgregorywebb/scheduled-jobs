@@ -19,7 +19,7 @@ url = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
 
 # Parameters to be sent in the query string
 params = {
-    "$limit": 10000,
+    "$limit": 5000,
     "$$app_token": NYC_OPEN_DATA_APP_TOKEN
 }
 
