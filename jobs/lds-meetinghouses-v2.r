@@ -57,16 +57,16 @@ units = raw %>%
          contact_position_type_display = contact.positionType.display, facility_id = facility.id, facility_type = facility.type,
          facility_name_display = facility.nameDisplay, facility_name_display = facility.nameDisplay, facility_type_display = facility.typeDisplay,
          property_id = facility.identifiers.propertyId, parent_id = parent.id, parent_type = parent.type, parent_name_display = parent.nameDisplay,
-         parent_type_display = parent.typeDisplay, parent_sub_type = parent.subType, parent_sub_type_display = parent.subTypeDisplay, 
-         scraped_at = datetime)
+         parent_type_display = parent.typeDisplay, parent_sub_type = parent.subType, parent_sub_type_display = parent.subTypeDisplay) %>%
+mutate(scraped_at = datetime)
 
 associations = raw %>% tibble() %>% select(id, associated) %>% unnest(associated, names_sep = '-') %>%
   select(id, associated_id = `associated-id`, name = `associated-name`, name_display = `associated-nameDisplay`,
          type_display = `associated-typeDisplay`, facility_idd = `associated-identifiers.facilityId`, 
          structure_id = `associated-identifiers.structureId`, property_id = `associated-identifiers.propertyId`,
          unit_number = `associated-identifiers.unitNumber`, org_id = `associated-identifiers.orgId`, sub_type = `associated-subType`,
-         sub_type_display = `associated-subTypeDisplay`, language_id = `associated-language.id`, language_code = `associated-language.code`,
-         scraped_at = datetime)
+         sub_type_display = `associated-subTypeDisplay`, language_id = `associated-language.id`, language_code = `associated-language.code`) %>%
+mutate(scraped_at = datetime)
 
 writeToS3 = function(file,bucket,filename){
   s3write_using(file, FUN = write.csv, bucket = bucket, object = filename)
