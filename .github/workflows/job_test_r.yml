@@ -32,4 +32,4 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       
       run: |
-        Rscript jobs/ksl-rentals.r
+        Rscript jobs/lds-meetinghouses-v2.r
