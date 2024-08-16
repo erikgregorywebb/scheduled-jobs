@@ -39,3 +39,4 @@ jobs:
         Rscript jobs/ksl-rentals.r
         Rscript jobs/travel-advisories.r
         Rscript jobs/lds-meetinghouses-v2.r
+        Rscript jobs/hacker-news.r
