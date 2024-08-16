@@ -1,5 +1,7 @@
 library(tidyverse)
 library(rvest)
+library(xml2)
+library(aws.s3)
 
 datetime = Sys.time()
 
