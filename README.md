@@ -21,3 +21,4 @@
 | `nyrr-races.r`  | R  | Daily  | Scrapes a list of upcoming races hosted by NYRR, dumps to S3. | Job 3 |
 | `ksl-rentals.r`  | R  | Daily  | Scrapes [KSL's](https://homes.ksl.com/rent/search) rental unit listings in Utah County, dumps to S3. | Job 3 |
 | `travel-advisories.r`  | R  | Daily  | Scrapes the US State Department's [travel advisory](https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html/) list, dumps to S3. | Job 3 |
+| `hacker-news.rr`  | R  | Daily  | Scrapes the first ten pages of YC's [Hacker News](https://news.ycombinator.com/news?p=1), dumps to S3. | Job 3 |
