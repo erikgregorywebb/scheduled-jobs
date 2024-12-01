@@ -43,7 +43,6 @@ jobs:
         run: | 
           python jobs/apple-app-store.py
           python jobs/freddie-mac-rates.py
-          python jobs/spotify-playlist-history.py
           python jobs/newsapi-top-headlines.py
           python jobs/spotify-podcast-charts.py
           python jobs/kworb-scrape.py
