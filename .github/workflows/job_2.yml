@@ -11,12 +11,12 @@ jobs:
     steps:
 
       - name: checkout repo content
-        uses: actions/checkout@v2 # checkout the repository content to github runner
+        uses: actions/checkout@v5 # checkout the repository content to github runner
 
       - name: setup python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.8.0' # install the python version needed
+          python-version: '3.13' # install the python version needed
           
       - name: install python packages
         run: |
