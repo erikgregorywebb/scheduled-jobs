@@ -27,8 +27,6 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
-          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           PRAW_CLIENT_ID: ${{ secrets.PRAW_CLIENT_ID }}
           PRAW_CLIENT_SECRET: ${{ secrets.PRAW_CLIENT_SECRET }}
           PRAW_USER_AGENT: ${{ secrets.PRAW_USER_AGENT }}
