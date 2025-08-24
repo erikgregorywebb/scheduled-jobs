@@ -15,7 +15,7 @@ raw = page %>% html_table() %>% first()
 
 # clean
 table = raw %>%
-  select(advisory = Advisory, level = Level, date_updated = `Date Updated`) %>%
+  select(advisory = Destination, level = Level, date_updated = `Date Issued`) %>%
   mutate(date_updated = mdy(date_updated), scraped_at = datetime)
 
 ####### EXPORT ####### 
