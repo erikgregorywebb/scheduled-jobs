@@ -41,6 +41,7 @@ jobs:
           NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
           
         run: | 
+          python jobs/apple-app-store.py
           python jobs/freddie-mac-rates.py
           python jobs/newsapi-top-headlines.py
           python jobs/spotify-podcast-charts.py
@@ -49,4 +50,3 @@ jobs:
           python jobs/nyc-311-requests.py
           python jobs/s3-snapshots.py
           python jobs/mormon-reddit-submissions.py
-          python jobs/apple-app-store.py
