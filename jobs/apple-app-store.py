@@ -5,27 +5,58 @@ from datetime import datetime
 import boto3
 from io import StringIO
 import os 
+from urllib.parse import urljoin
 
 # get current date and datetime
 current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
-# get page content
-url = 'https://apps.apple.com/us/charts/iphone/finance-apps/6015?chart=top-free'
-page = requests.get(url)
-soup = BeautifulSoup(page.content, "html.parser")
+# URL for iPhone Finance charts
+url = 'https://apps.apple.com/us/iphone/charts/6015'
 
-# extract values
+# fetch page (spoof a normal browser)
+headers = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/129.0.0.0 Safari/537.36"
+    )
+}
+resp = requests.get(url, headers=headers)
+resp.raise_for_status()
+
+soup = BeautifulSoup(resp.text, "html.parser")
+
 items = []
-for item in soup.find_all(class_="we-lockup--in-app-shelf"):
-    label = item.find('a')["aria-label"]
-    link = item.find('a')["href"]
-    item = [label, link, current_datetime]
-    items.append(item)
 
-# save as dataframe
-df = pd.DataFrame(items)
-df.columns = ['label', 'link', 'scraped_at']
+for a in soup.find_all("a", href=True):
+    href = a["href"]
+
+    # keep only app detail links
+    if "/app/" not in href:
+        continue
+
+    label = a.get_text(" ", strip=True)
+
+    # skip junky labels
+    if not label:
+        continue
+    if label.lower() in ("view", "open", "download on the app store"):
+        continue
+
+    # make link absolute
+    link = urljoin("https://apps.apple.com", href)
+
+    items.append([label, link, current_datetime])
+
+# build dataframe
+df = pd.DataFrame(items, columns=["label", "link", "scraped_at"])
+
+# drop duplicates (same app link & label)
+df = df.drop_duplicates(subset=["label", "link"]).reset_index(drop=True)
+
+print(df.head())
+print(f"Scraped {len(df)} rows.")
 
 # get environmental variables
 AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
