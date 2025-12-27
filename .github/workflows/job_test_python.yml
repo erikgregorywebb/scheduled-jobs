@@ -39,4 +39,4 @@ jobs:
           NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
           
         run: |
-          python jobs/nyc-311-requests.py
+          python jobs/pinal-county-parcels.py
