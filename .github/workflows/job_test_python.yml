@@ -39,4 +39,4 @@ jobs:
           NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
           
         run: |
-          python jobs/pinal-county-parcels.py
+          python jobs/wikipedia-daily-metrics.py
