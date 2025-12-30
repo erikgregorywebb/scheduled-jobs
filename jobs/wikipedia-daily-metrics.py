@@ -80,5 +80,5 @@ def copy_to_s3(client, df, bucket, filepath):
     client.put_object(Bucket=bucket, Key=filepath, Body=csv_buf.getvalue())
     print(f"Copied {df.shape[0]:,} rows to s3://{bucket}/{filepath}")
 
-file_path = 'wikipedia/wikipedia-daily-metrics-' + current_datetime_label + '.csv'
+file_path = 'wikipedia/daily-metrics/wikipedia-daily-metrics-' + current_datetime_label + '.csv'
 copy_to_s3(client=s3, df=df, bucket="egw-data-dumps", filepath=file_path)
