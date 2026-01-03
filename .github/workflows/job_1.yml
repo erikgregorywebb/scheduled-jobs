@@ -50,3 +50,4 @@ jobs:
           python jobs/nyc-311-requests.py
           python jobs/s3-snapshots.py
           python jobs/mormon-reddit-submissions.py
+          python jobs/wikipedia-daily-metrics.py
