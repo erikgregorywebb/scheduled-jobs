@@ -10,7 +10,7 @@ urls = sprintf('https://news.ycombinator.com/news?p=%s', seq(1, 10, 1))
 datalist = list()
 k = 1
 for (i in 1:length(urls)) {
-  Sys.sleep(5)
+  Sys.sleep(15)
   print(urls[i])
   page = read_html(urls[i])
   objects = page %>% html_nodes('.athing')
