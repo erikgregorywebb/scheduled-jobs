@@ -17,8 +17,10 @@ categories = ['top', 'arts', 'business', 'comedy', 'education', 'fiction', 'heal
 # define function
 def get_podcast_chart(category):
     url = 'https://podcastcharts.byspotify.com/api/charts/' + category + '?region=us'
-    #print(url)
     r = requests.get(url)
+    if r.status_code != 200 or not r.text.strip():
+        print(f'Skipping category {category}: status {r.status_code}')
+        return None
     rows = []
     for i in r.json():
         chart_rank_move = i['chartRankMove']
@@ -33,12 +35,16 @@ def get_podcast_chart(category):
     df.columns =['chart_rank_move', 'show_description', 'show_image_url', 'show_name', 'show_publisher', 'show_uri', 'category', 'url', 'datetime']
     df = df.reset_index()
     return(df)
-   
+
 # loop over categories
 dfs = []
 for category in categories:
     df = get_podcast_chart(category)
-    dfs.append(df)
+    if df is not None:
+        dfs.append(df)
+if not dfs:
+    print('No data scraped from any category, exiting.')
+    exit(0)
 df = pd.concat(dfs)
 
 # copy to s3
