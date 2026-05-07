@@ -12,7 +12,8 @@ k = 1
 for (i in 1:length(urls)) {
   Sys.sleep(15)
   print(urls[i])
-  page = read_html(urls[i])
+  page = tryCatch(read_html(urls[i]), error = function(e) { message(paste("Skipping", urls[i], ":", e$message)); NULL })
+  if (is.null(page)) next
   objects = page %>% html_nodes('.athing')
   subtexts = page %>% html_nodes('.subtext')
   for (j in 1:length(objects)) {
