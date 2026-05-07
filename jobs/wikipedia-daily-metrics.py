@@ -44,6 +44,9 @@ for i in range(DAYS_BACK):
     print(f"Fetching: {url}")
 
     resp = session.get(url, timeout=30)
+    if resp.status_code == 404:
+        print(f"  Data not available yet for {day}, skipping.")
+        continue
     resp.raise_for_status()
     data = resp.json()
 
@@ -60,6 +63,9 @@ for i in range(DAYS_BACK):
 
     time.sleep(0.1)  # be polite
 
+if not rows:
+    print("No data available for any day, exiting.")
+    exit(0)
 df = pd.DataFrame(rows, columns=["date", "rank", "page", "pageviews"])
 df = df.sort_values(["date", "rank"], ascending=[False, True]).reset_index(drop=True)
 
