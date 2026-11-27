@@ -7,6 +7,8 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | Name  | Type | Frequency | Description | Job |
 | ------------- | ------------- | ------------- | ------------- | ------------- |
 | `apple-app-store.py`  | Python  | Daily  | Scrapes top 100 free Finance apps from the [Apple App Store](https://apps.apple.com/us/charts/iphone/finance-apps/6015?chart=top-free), dumps to S3.  | Job 1 |
+| `apple-app-store-charts.py`  | Python  | Daily  | Collects the top 100 free, paid, and grossing iPhone Finance apps, with rank, from Apple's [iTunes RSS feed](https://itunes.apple.com/us/rss/topfreeapplications/limit=100/genre=6015/json), dumps to S3. | Job 1 |
+| `apple-podcast-charts.py`  | Python  | Daily  | Collects the Apple Podcasts top 100 shows overall and in each of 18 categories from the [iTunes RSS feed](https://itunes.apple.com/us/rss/toppodcasts/limit=100/json), plus the top 100 episodes from the [v2 feed](https://rss.marketingtools.apple.com/api/v2/us/podcasts/top/100/podcast-episodes.json), dumps to S3. | Job 1 |
 | `freddie-mac-rates.py`  | Python  | Daily  | Scrapes mortgage rates published on the home page of [Freddie Mac](https://www.freddiemac.com/), dumps to S3. | Job 1 |
 | `mormon-reddit-submissions.py`  | Python  | Daily  | Grabs the latest 250 posts across the ["mormon"](https://www.reddit.com/r/mormon/) subreddits, dumps to S3.  | Job 1 |
 | `mormon-reddit-comments.py`  | Python  | Every 4 Hours  | Grabs the latest 250 comments per ["mormon"](https://www.reddit.com/r/mormon/) subreddit, dumps to S3.  | Job 2 |
