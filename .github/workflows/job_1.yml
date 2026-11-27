@@ -1,154 +1,219 @@
-# tutorial: https://canovasjm.netlify.app/2020/11/29/github-actions-run-a-python-script-on-schedule-and-commit-changes/
+# Generated from jobs.yml by tools/manifest.py. Edit jobs.yml and re-run it; don't edit this file.
+# Daily jobs.
 
 name: job_1
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '13 8 * * *' # runs daily at 08:13 UTC (off the top of the hour, when GitHub queues are busiest)
+    - cron: '13 8 * * *' # daily at 08:13 UTC (off the top of the hour, when GitHub queues are busiest)
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 60 # a full run normally takes ~2 minutes
-    env: # shared by every script step below
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
-      SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
-      PRAW_CLIENT_ID: ${{ secrets.PRAW_CLIENT_ID }}
-      PRAW_CLIENT_SECRET: ${{ secrets.PRAW_CLIENT_SECRET }}
-      PRAW_USER_AGENT: ${{ secrets.PRAW_USER_AGENT }}
-      PRAW_USERNAME: ${{ secrets.PRAW_USERNAME }}
-      PRAW_PASSWORD: ${{ secrets.PRAW_PASSWORD }}
-      NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
-      LAST_FM_API_KEY: ${{ secrets.LAST_FM_API_KEY }}
-      NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
-      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
     steps:
 
       - name: checkout repo content
-        uses: actions/checkout@v5 # checkout the repository content to github runner
+        uses: actions/checkout@v5
 
       - name: setup python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.10' # install the python version needed
+          python-version: '3.10'
+          cache: 'pip' # reuse downloaded packages between runs
 
       - name: install python packages
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Run each script in its own step, so one failing or hung script doesn't skip the rest.
-      # The run is still marked failed if any step fails.
+      # Each script runs in its own step, so one failing or hung script doesn't skip
+      # the rest; the run is still marked failed if any step fails. Each step gets
+      # only the secrets its script needs.
 
       - name: run apple-app-store
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/apple-app-store.py
 
       - name: run apple-app-store-charts
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/apple-app-store-charts.py
 
       - name: run apple-podcast-charts
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/apple-podcast-charts.py
 
       - name: run freddie-mac-rates
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/freddie-mac-rates.py
 
       - name: run newsapi-top-headlines
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
         run: python jobs/newsapi-top-headlines.py
 
       - name: run spotify-podcast-charts
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/spotify-podcast-charts.py
 
       - name: run kworb-scrape
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/kworb-scrape.py
 
       - name: run last-fm-history
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          LAST_FM_API_KEY: ${{ secrets.LAST_FM_API_KEY }}
         run: python jobs/last-fm-history.py
 
       - name: run nyc-311-requests
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
         run: python jobs/nyc-311-requests.py
 
       - name: run nyc-restaurant-grades
         if: ${{ !cancelled() }}
-        timeout-minutes: 10 # ~1 minute: a handful of paged Socrata queries
+        timeout-minutes: 10 # ~1 minute, a handful of paged Socrata queries
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
         run: python jobs/nyc-restaurant-grades.py
 
       - name: run s3-snapshots
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/s3-snapshots.py
 
       - name: run mormon-reddit-submissions
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PRAW_CLIENT_ID: ${{ secrets.PRAW_CLIENT_ID }}
+          PRAW_CLIENT_SECRET: ${{ secrets.PRAW_CLIENT_SECRET }}
+          PRAW_USER_AGENT: ${{ secrets.PRAW_USER_AGENT }}
+          PRAW_USERNAME: ${{ secrets.PRAW_USERNAME }}
+          PRAW_PASSWORD: ${{ secrets.PRAW_PASSWORD }}
         run: python jobs/mormon-reddit-submissions.py
 
       - name: run wikipedia-daily-metrics
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/wikipedia-daily-metrics.py
 
       - name: run go-fund-me
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/go-fund-me.py
 
       - name: run ny-lottery-winning-numbers
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/ny-lottery-winning-numbers.py
 
       - name: run treasury-daily
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/treasury-daily.py
 
       - name: run tmdb-now-playing
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: python jobs/tmdb-now-playing.py
 
       - name: run lds-meetinghouses
         if: ${{ !cancelled() }}
         timeout-minutes: 20 # one ~60-second, ~16 MB request; room for retries
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/lds-meetinghouses.py
 
       - name: run lds-temples
         if: ${{ !cancelled() }}
         timeout-minutes: 20 # ~385 details pages, 4 at a time; room for retries
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/lds-temples.py
 
       - name: run faa-aircraft-registry
         if: ${{ !cancelled() }}
         timeout-minutes: 15 # one ~73 MB download and upload; room for retries
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/faa-aircraft-registry.py
 
       - name: run cnn-fear-greed
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/cnn-fear-greed.py
 
       - name: run lds-newsroom-rss
         if: ${{ !cancelled() }}
         timeout-minutes: 10
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/lds-newsroom-rss.py

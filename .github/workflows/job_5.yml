@@ -1,9 +1,12 @@
+# Generated from jobs.yml by tools/manifest.py. Edit jobs.yml and re-run it; don't edit this file.
+# Hourly jobs.
+
 name: job_5
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '7 * * * *' # runs hourly at :07 (off the top of the hour, when GitHub queues are busiest)
+    - cron: '7 * * * *' # hourly at :07 (off the top of the hour, when GitHub queues are busiest)
 
 jobs:
   build:
@@ -12,72 +15,67 @@ jobs:
     steps:
 
       - name: checkout repo content
-        uses: actions/checkout@v5 # checkout the repository content to github runner
+        uses: actions/checkout@v5
 
       - name: setup python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.10' # install the python version needed
+          python-version: '3.10'
+          cache: 'pip' # reuse downloaded packages between runs
 
       - name: install python packages
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: execute py scripts
+      # Each script runs in its own step, so one failing or hung script doesn't skip
+      # the rest; the run is still marked failed if any step fails. Each step gets
+      # only the secrets its script needs.
+
+      - name: run open-meteo-weather-hourly
+        if: ${{ !cancelled() }}
         timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python jobs/open-meteo-weather-hourly.py
 
-        run: |
-          python jobs/open-meteo-weather-hourly.py
-
-      - name: execute citibike py script
-        if: ${{ !cancelled() }} # run even if the weather script failed
+      - name: run citibike-station-status
+        if: ${{ !cancelled() }}
         timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python jobs/citibike-station-status.py
 
-        run: |
-          python jobs/citibike-station-status.py
-
-      - name: execute faa airport status py script
-        if: ${{ !cancelled() }} # run even if an earlier script failed
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-        run: |
-          python jobs/faa-airport-status.py
-
-      - name: execute metro-north trip updates py script
-        if: ${{ !cancelled() }} # run even if an earlier script failed
+      - name: run faa-airport-status
+        if: ${{ !cancelled() }}
         timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python jobs/faa-airport-status.py
 
-        run: |
-          python jobs/metro-north-trip-updates.py
-
-      - name: execute metro-north service alerts py script
-        if: ${{ !cancelled() }} # run even if an earlier script failed
+      - name: run metro-north-trip-updates
+        if: ${{ !cancelled() }}
         timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python jobs/metro-north-trip-updates.py
 
-        run: |
-          python jobs/metro-north-service-alerts.py
+      - name: run metro-north-service-alerts
+        if: ${{ !cancelled() }}
+        timeout-minutes: 4
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python jobs/metro-north-service-alerts.py
 
-      - name: execute polymarket markets py script
-        if: ${{ !cancelled() }} # run even if an earlier script failed
+      - name: run polymarket-markets
+        if: ${{ !cancelled() }}
         timeout-minutes: 4 # ~60 requests, normally ~30 seconds
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-        run: |
-          python jobs/polymarket-markets.py
+        run: python jobs/polymarket-markets.py

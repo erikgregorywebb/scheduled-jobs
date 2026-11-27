@@ -1,0 +1,41 @@
+# Generated from jobs.yml by tools/manifest.py. Edit jobs.yml and re-run it; don't edit this file.
+# Daily freshness check of every job's S3 output, after the daily jobs finish.
+
+name: job_7
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 11 * * *' # daily at 11:47 UTC, ~3 hours after the last daily workflow starts
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+
+      - name: checkout repo content
+        uses: actions/checkout@v5
+
+      - name: setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: 'pip' # reuse downloaded packages between runs
+
+      - name: install python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Each script runs in its own step, so one failing or hung script doesn't skip
+      # the rest; the run is still marked failed if any step fails. Each step gets
+      # only the secrets its script needs.
+
+      - name: run freshness-check
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python jobs/freshness-check.py
