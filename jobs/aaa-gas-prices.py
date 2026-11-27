@@ -2,12 +2,12 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
-import boto3
-from io import StringIO
 import json
 import re
 import time
 import os
+
+from common import RUN_DATETIME, RUN_LABEL, get, save_csv
 
 # Collects AAA's daily gas price averages from gasprices.aaa.com and dumps three files to S3
 # under aaa-gas-prices/:
@@ -29,7 +29,6 @@ HEADERS = {
 }
 BASE_URL = 'https://gasprices.aaa.com/'
 CRAWL_DELAY = float(os.environ.get('CRAWL_DELAY', 10))
-BUCKET = 'egw-data-dumps'
 PREFIX = 'aaa-gas-prices/'
 
 STATES = {
@@ -54,39 +53,24 @@ GRADES = {'regular': 'regular', 'mid-grade': 'mid_grade', 'mid': 'mid_grade',
 GRADE_COLUMNS = ['regular', 'mid_grade', 'premium', 'diesel', 'e85']
 RECORD_GRADES = {'regular unleaded': 'regular', 'diesel': 'diesel'}
 
-now = datetime.now()
-current_datetime = now.strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = now.strftime('%Y-%m-%d-%H-%M-%S')
-
-dry_run = bool(os.environ.get('DRY_RUN'))  # local check without S3: DRY_RUN=1 python jobs/aaa-gas-prices.py
-if not dry_run:
-    s3 = boto3.client('s3', aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-                      aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'])
-
 session = requests.Session()
 session.headers.update(HEADERS)
 last_request = 0.0
 
-def fetch(url, params=None, attempts=4):
-    # one polite, retried GET; retries 429/5xx and connection errors, fails fast on other 4xx
+def fetch(url, params=None):
+    # one polite GET: waits out the crawl delay since the last request, then
+    # common.get retries 429/5xx and connection errors (after 30, 60, 90s, all
+    # longer than the crawl delay) and fails fast on other 4xx
     global last_request
-    for attempt in range(attempts):
-        wait = CRAWL_DELAY - (time.time() - last_request)
-        if wait > 0:
-            time.sleep(wait)
+    wait = CRAWL_DELAY - (time.time() - last_request)
+    if wait > 0:
+        time.sleep(wait)
+    try:
+        r = get(url, session=session, params=params, timeout=60, delays=(30, 60, 90),
+                name=f'{url} {params or ""}'.strip())
+    finally:
         last_request = time.time()
-        try:
-            r = session.get(url, params=params, timeout=60)
-            if r.status_code == 429 or r.status_code >= 500:
-                raise requests.HTTPError(f'{r.status_code} from {r.url}')
-            r.raise_for_status()
-            return r.text
-        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as e:
-            retryable = not (isinstance(e, requests.HTTPError) and e.response is not None and e.response.status_code < 500 and e.response.status_code != 429)
-            if attempt == attempts - 1 or not retryable:
-                raise
-            print(f'  retrying {url} {params or ""} after error: {e}')
-            time.sleep(30 * (attempt + 1))
+    return r.text
 
 def to_price(text):
     text = text.strip().replace('$', '').replace(',', '')
@@ -141,11 +125,11 @@ def add(level, state, state_name, metro, as_of, table):
     for period, prices in parse_averages(table).items():
         averages.append({'level': level, 'state': state, 'state_name': state_name, 'metro': metro,
                          'period': period, **{g: prices.get(g) for g in GRADE_COLUMNS},
-                         'price_as_of': as_of, 'datetime': current_datetime})
+                         'price_as_of': as_of, 'datetime': RUN_DATETIME})
     for grade, price, date in following_records(table):
         records.append({'level': level, 'state': state, 'state_name': state_name, 'metro': metro,
                         'grade': grade, 'record_price': price, 'record_date': date,
-                        'price_as_of': as_of, 'datetime': current_datetime})
+                        'price_as_of': as_of, 'datetime': RUN_DATETIME})
 
 # national
 soup = BeautifulSoup(fetch(BASE_URL), 'html.parser')
@@ -180,7 +164,7 @@ for code, name in STATES.items():
                 counties.append({'state': code, 'state_name': name,
                                  'county': json.loads(f'"{county}"'),
                                  'regular': to_price(comment), 'price_as_of': as_of,
-                                 'datetime': current_datetime})
+                                 'datetime': RUN_DATETIME})
                 county_count += 1
         print(f'{code}: price as of {as_of}, {metro_count} metros, {county_count} counties')
     except Exception as e:
@@ -188,16 +172,7 @@ for code, name in STATES.items():
         failed.append(code)
 
 def save(name, rows):
-    df = pd.DataFrame(rows)
-    filename = f'aaa-gas-prices-{name}-{current_datetime_label}.csv'
-    if dry_run:
-        df.to_csv(filename, index=False)
-        print(f'Dry run: wrote {df.shape[0]} rows to {filename}')
-    else:
-        csv_buf = StringIO()
-        df.to_csv(csv_buf, header=True, index=False)
-        s3.put_object(Bucket=BUCKET, Body=csv_buf.getvalue(), Key=f'{PREFIX}{name}/{filename}')
-        print(f'Copy {df.shape[0]} rows to S3 Bucket {BUCKET} at {PREFIX}{name}/{filename}, Done!')
+    save_csv(pd.DataFrame(rows), f'{PREFIX}{name}/aaa-gas-prices-{name}-{RUN_LABEL}.csv')
 
 # don't save a run where the site mostly failed (e.g. Cloudflare blocking the runner)
 if len(failed) > 5:
