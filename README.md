@@ -19,6 +19,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `kworb-scrape.py`  | Python  | Daily  | Grabs [kworb](https://kworb.net/) artist, listener, and chart objects, dumps to S3. | Job 1 |
 | `zillow-scrape.r`  | R  | Daily  | Scrapes [Zillow](https://www.zillow.com/research/data/)'s basic, zipcode-level ZHVF file, dumps to S3. | Job 3 |
 | `s3-snapshots.py`  | Python  | Daily  | Saves snapshot of all files and directories within S3 bucket, dumps to S3.  | Job 1 |
+| `aws-cost-usage.py`  | Python  | Daily  | Pulls daily AWS cost and usage per service and usage type for the trailing 14 days from the [Cost Explorer API](https://docs.aws.amazon.com/aws-cost-management/latest/APIReference/API_GetCostAndUsage.html) (any range in the last ~14 months via `AWS_USAGE_START`/`AWS_USAGE_END`), dumps to S3 under `data-pipeline-logs/`. Needs `ce:GetCostAndUsage` on the jobs' AWS key. | Job 1 |
 | `tsa-passenger-volumes.r`  | R  | Daily  | Scrapes daily passenger volume counts reported by the TSA, dumps to S3.  | Job 3 |
 | `mta-lift-status.r`  | R  | Daily  | Scrapes elevator and escalator status logs from NY's Metro North Railroad, dumps to S3 under `mta/metro-north-lifts/`.  | Job 3 |
 | `nyc-311-requests.py`  | Python  | Daily  | Scrapes 10k of the latest NYC 311 requests, dumps to S3. | Job 1 |

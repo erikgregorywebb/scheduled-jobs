@@ -162,3 +162,8 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 10 # ~35 MB of downloads when Netflix has a new weekly release (the all-countries file, filtered to the US); a few seconds otherwise
         run: python jobs/netflix-top-10.py
+
+      - name: run aws-cost-usage
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10 # one or two Cost Explorer requests ($0.01 each)
+        run: python jobs/aws-cost-usage.py
