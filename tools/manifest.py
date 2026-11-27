@@ -22,7 +22,7 @@ README_END = '<!-- END GENERATED FROM jobs.yml -->'
 
 ALWAYS_SECRETS = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY']
 # environment variables scripts may read that aren't secrets
-NON_SECRET_ENV = {'DRY_RUN', 'DRY_RUN_DIR', 'BACKFILL', 'CRAWL_DELAY', 'GITHUB_STEP_SUMMARY'}
+NON_SECRET_ENV = {'DRY_RUN', 'DRY_RUN_DIR', 'BACKFILL', 'CRAWL_DELAY', 'PARSE_FILE', 'GITHUB_STEP_SUMMARY'}
 FREQUENCIES = {'Hourly': 4, 'Every 4 Hours': 9, 'Daily': 26}  # default freshness max age, hours
 HEADER = '# Generated from jobs.yml by tools/manifest.py. Edit jobs.yml and re-run it; don\'t edit this file.\n'
 PYTHON_SETUP = """\

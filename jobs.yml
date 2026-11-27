@@ -335,6 +335,19 @@ jobs:
         note: only saved when the all-time list changes, which can be weeks apart
     description: "Saves Netflix's official [Top 10](https://www.netflix.com/tudum/top10) TSV downloads (formerly top10.netflix.com): global weekly top 10 films and TV with hours viewed and views, the weekly US top 10 films and TV (filtered from Netflix's all-countries file), and the all-time most popular list, all back to July 2021. Netflix publishes weekly on Tuesdays, so each file is converted to CSV and saved only when it changes, dumps to S3 under `netflix-top-10/`."
 
+
+  billboard-hot-100:
+    script: billboard-hot-100.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    timeout_note: one ~3 MB page; saves only when Billboard publishes a new weekly chart
+    outputs:
+      - stem: billboard-hot-100/billboard-hot-100-
+        max_age_hours: 216
+        note: one file per weekly chart (named by chart date), saved the Tuesday Billboard publishes it
+    description: "Parses the [Billboard Hot 100](https://www.billboard.com/charts/hot-100/) from its chart page: rank, title, artist, last week's rank, peak, weeks at No. 1, weeks on chart, and a new / re-entry flag for all 100 songs. Billboard publishes weekly on Tuesdays (dated the following Saturday), so each chart is saved once, as CSV, dumps to S3 under `billboard-hot-100/`."
+
   mormon-reddit-comments:
     script: mormon-reddit-comments.py
     workflow: job_2

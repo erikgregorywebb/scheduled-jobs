@@ -233,3 +233,11 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/netflix-top-10.py
+
+      - name: run billboard-hot-100
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10 # one ~3 MB page; saves only when Billboard publishes a new weekly chart
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python jobs/billboard-hot-100.py
