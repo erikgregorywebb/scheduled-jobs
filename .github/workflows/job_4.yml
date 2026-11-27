@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45 # a run normally takes ~7 minutes
     steps:
 
       - name: checkout repo content
@@ -26,6 +27,7 @@ jobs:
           pip install -r requirements.txt
           
       - name: execute py scripts
+        timeout-minutes: 30
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

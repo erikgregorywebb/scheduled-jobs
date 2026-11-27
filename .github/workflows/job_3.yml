@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45 # a run normally takes 4-6 minutes
 
     # Load repo and install R
     steps:
@@ -33,6 +34,7 @@ jobs:
     # The run is still marked failed if any step fails.
     - name: run zillow-scrape
       if: ${{ !cancelled() }}
+      timeout-minutes: 10
       env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -40,6 +42,7 @@ jobs:
 
     - name: run tsa-passenger-volumes
       if: ${{ !cancelled() }}
+      timeout-minutes: 10
       env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -47,6 +50,7 @@ jobs:
 
     - name: run mta-lift-status
       if: ${{ !cancelled() }}
+      timeout-minutes: 10
       env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -54,6 +58,7 @@ jobs:
 
     - name: run nyrr-races
       if: ${{ !cancelled() }}
+      timeout-minutes: 10
       env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -61,6 +66,7 @@ jobs:
 
     - name: run ksl-rentals
       if: ${{ !cancelled() }}
+      timeout-minutes: 10
       env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -68,6 +74,7 @@ jobs:
 
     - name: run hacker-news
       if: ${{ !cancelled() }}
+      timeout-minutes: 10
       env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -75,6 +82,7 @@ jobs:
 
     - name: run travel-advisories
       if: ${{ !cancelled() }}
+      timeout-minutes: 10
       env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
