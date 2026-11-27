@@ -24,6 +24,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `ksl-rentals.r`  | R  | Daily  | Scrapes [KSL's](https://homes.ksl.com/rent/search) rental unit listings in Utah County, dumps to S3. | Job 3 |
 | `hacker-news.r`  | R  | Daily  | Scrapes the first ten pages of YC's [Hacker News](https://news.ycombinator.com/news?p=1), dumps to S3. | Job 3 |
 | `open-meteo-weather-hourly.py`  | Python  | Hourly  | Collects current weather conditions for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3. | Job 5 |
+| `faa-airport-status.py`  | Python  | Hourly  | Snapshots the FAA's live [airport status](https://nasstatus.faa.gov/) feed: ground stops, ground delay programs, arrival/departure delays, airspace flow programs, and closures, dumps to S3. | Job 5 |
 | `citibike-station-status.py`  | Python  | Hourly  | Snapshots bikes and docks available at every Citi Bike station from the public [GBFS feed](https://gbfs.citibikenyc.com/gbfs/2.3/gbfs.json), with station name, location, and capacity, dumps to S3. | Job 5 |
 | `open-meteo-weather-daily.py`  | Python  | Daily  | Backfills the previous day's 24 hourly weather readings for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3. | Job 6 |
 | `last-fm-history.py`  | Python  | Daily  | Collects recent listening history from the [Last.fm API](https://www.last.fm/api), dumps to S3. | Job 1 |
