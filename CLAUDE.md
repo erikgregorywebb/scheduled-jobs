@@ -11,6 +11,8 @@ silently corrupt them.
   `freshness-check.py` (the daily monitor, itself a job).
 - `jobs.yml` — the one list of jobs: script, workflow, frequency, step timeout,
   secrets, S3 output stems, README description. **Source of truth.**
+- `tools/run_log.py` — the gate and record steps every scheduled workflow runs
+  (see Run tracking).
 - `tools/manifest.py` — generates `.github/workflows/job_*.yml`,
   `job_test_python.yml` and the README tables from `jobs.yml`. Run
   `python tools/manifest.py` after editing `jobs.yml`; `--check` validates (CI
@@ -71,20 +73,42 @@ Conventions (see `.github/pull_request_template.md` for the full checklist):
 
 ## Schedules
 
-| Workflow | When (UTC) | What |
-| --- | --- | --- |
-| job_1 | daily 08:13 | most daily jobs (AAA gas prices takes ~17 min at its crawl delay) |
-| job_2 | every 4h at :17 | Reddit comments |
-| job_3 | daily 08:29 | the jobs ported from R |
-| job_4 | daily 08:43 | Pinal County parcels (slow) |
-| job_5 | hourly at :07 | weather, Citi Bike, FAA status, Metro-North, Polymarket |
-| job_6 | daily 06:23 | previous day's weather |
-| job_7 | daily 14:37 | Ski Utah snow reports (after resorts post) |
-| job_8 | daily 11:47 | freshness check |
+GitHub delays and drops scheduled runs (this repo's daily crons have started
+~10 hours late, and most hourly ones never fired), so each workflow is tried
+several times per period: an hour, a 4-hour block (00, 04, ... UTC) or a UTC
+day, set by its jobs' frequency, which they must share. The first attempt to
+start in a period runs the scripts; later ones run only those that haven't
+succeeded that period, usually none (`tools/run_log.py gate`). Manual runs
+always run everything and count towards the period. Attempts queue rather than
+overlap (`concurrency`).
 
-Crons sit off the top of the hour, when GitHub's queue is busiest. Scheduled
-runs can start late or be skipped, so the freshness limits (Hourly 4h, Every 4
-Hours 9h, Daily 26h) leave slack.
+| Workflow | Period | Tried at (UTC) | What |
+| --- | --- | --- | --- |
+| job_1 | day | 08:13, then every 3h to 23:13 | most daily jobs (AAA gas prices takes ~17 min at its crawl delay) |
+| job_2 | 4 hours | hourly at :17 | Reddit comments |
+| job_3 | day | 08:29, then every 3h to 23:29 | the jobs ported from R |
+| job_4 | day | 08:43, then every 3h to 23:43 | Pinal County parcels (slow) |
+| job_5 | hour | :11, :31, :51 | weather, Citi Bike, FAA status, Metro-North, Polymarket, subway |
+| job_6 | day | 06:23, then every 3h to 21:23 | previous day's weather |
+| job_7 | day | 14:37, then every 2h to 22:37 | Ski Utah snow reports (after resorts post) |
+| job_8 | day | 11:47, then every 3h to 23:47 | freshness check, run summary |
+
+Crons sit off the top of the hour, when GitHub's queue is busiest. The
+freshness limits (Hourly 4h, Every 4 Hours 9h, Daily 26h) leave slack.
+
+## Run tracking
+
+Every run of a scheduled workflow, scheduled or manual, ends with
+`tools/run_log.py record`, which writes one row per script (period, event,
+cron slot, minutes late, outcome: success / failure / cancelled / skipped /
+already_done / not_run) to
+`data-pipeline-logs/runs/<workflow>/runs-<workflow>-<ts>.csv`. The gate reads
+these to decide what to skip. `jobs/run-summary.py` (job_8) rolls the last week
+into `data-pipeline-logs/run-summary/`: per workflow and day, periods due,
+started and complete, runs, no-op runs, failures and lateness. A period with no
+run at all is one GitHub dropped every attempt for. Locally:
+`DRY_RUN=1 python jobs/run-summary.py` prints the table. A run killed by its
+workflow timeout writes no record.
 
 ## Bucket notes
 
@@ -93,6 +117,8 @@ Hours 9h, Daily 26h) leave slack.
   current full listing. The old daily full listings
   (`data-pipeline-logs/s3-snapshot-<ts>.csv`) stop on 2026-11-27.
 - `data-pipeline-logs/freshness/`: the freshness check's daily report.
+- `data-pipeline-logs/runs/`, `data-pipeline-logs/run-summary/`: run records and
+  their daily summary (see Run tracking).
 - `zillow/`: deduplicated on 2026-11-27, keeping the first copy of each of the
   44 distinct files. `data-pipeline-logs/zillow-dedupe/` maps every removed key
   to the kept copy. Bucket versioning is off, so deletes are permanent: list and

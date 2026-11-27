@@ -6,7 +6,13 @@ name: job_1
 on:
   workflow_dispatch:
   schedule:
-    - cron: '13 8 * * *' # daily at 08:13 UTC (off the top of the hour, when GitHub queues are busiest)
+    - cron: '13 8,11,14,17,20,23 * * *' # daily; tries at 08:13 UTC, then every 3 hours until 23:13
+
+# Attempts queue behind a running one rather than overlap, so its record is
+# saved before the next attempt checks what this period still needs.
+concurrency:
+  group: job_1
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -28,12 +34,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Scheduled attempts skip scripts that already succeeded this period
+      # (see tools/run_log.py); manual runs run everything.
+      - name: check earlier runs this period
+        id: gate
+        timeout-minutes: 3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python tools/run_log.py gate
+
       # Each script runs in its own step, so one failing or hung script doesn't skip
       # the rest; the run is still marked failed if any step fails. Each step gets
       # only the secrets its script needs.
 
       - name: run apple-app-store
-        if: ${{ !cancelled() }}
+        id: apple-app-store
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',apple-app-store,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -41,7 +58,8 @@ jobs:
         run: python jobs/apple-app-store.py
 
       - name: run apple-app-store-charts
-        if: ${{ !cancelled() }}
+        id: apple-app-store-charts
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',apple-app-store-charts,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -49,7 +67,8 @@ jobs:
         run: python jobs/apple-app-store-charts.py
 
       - name: run apple-podcast-charts
-        if: ${{ !cancelled() }}
+        id: apple-podcast-charts
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',apple-podcast-charts,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -57,7 +76,8 @@ jobs:
         run: python jobs/apple-podcast-charts.py
 
       - name: run freddie-mac-rates
-        if: ${{ !cancelled() }}
+        id: freddie-mac-rates
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',freddie-mac-rates,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -65,7 +85,8 @@ jobs:
         run: python jobs/freddie-mac-rates.py
 
       - name: run newsapi-top-headlines
-        if: ${{ !cancelled() }}
+        id: newsapi-top-headlines
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',newsapi-top-headlines,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -74,7 +95,8 @@ jobs:
         run: python jobs/newsapi-top-headlines.py
 
       - name: run spotify-podcast-charts
-        if: ${{ !cancelled() }}
+        id: spotify-podcast-charts
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',spotify-podcast-charts,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -82,7 +104,8 @@ jobs:
         run: python jobs/spotify-podcast-charts.py
 
       - name: run kworb-scrape
-        if: ${{ !cancelled() }}
+        id: kworb-scrape
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',kworb-scrape,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -90,7 +113,8 @@ jobs:
         run: python jobs/kworb-scrape.py
 
       - name: run last-fm-history
-        if: ${{ !cancelled() }}
+        id: last-fm-history
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',last-fm-history,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -99,7 +123,8 @@ jobs:
         run: python jobs/last-fm-history.py
 
       - name: run nyc-311-requests
-        if: ${{ !cancelled() }}
+        id: nyc-311-requests
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',nyc-311-requests,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -108,7 +133,8 @@ jobs:
         run: python jobs/nyc-311-requests.py
 
       - name: run nyc-restaurant-grades
-        if: ${{ !cancelled() }}
+        id: nyc-restaurant-grades
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',nyc-restaurant-grades,') }}
         timeout-minutes: 10 # ~1 minute, a handful of paged Socrata queries
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -117,7 +143,8 @@ jobs:
         run: python jobs/nyc-restaurant-grades.py
 
       - name: run s3-snapshots
-        if: ${{ !cancelled() }}
+        id: s3-snapshots
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',s3-snapshots,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -125,7 +152,8 @@ jobs:
         run: python jobs/s3-snapshots.py
 
       - name: run mormon-reddit-submissions
-        if: ${{ !cancelled() }}
+        id: mormon-reddit-submissions
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',mormon-reddit-submissions,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -138,7 +166,8 @@ jobs:
         run: python jobs/mormon-reddit-submissions.py
 
       - name: run wikipedia-daily-metrics
-        if: ${{ !cancelled() }}
+        id: wikipedia-daily-metrics
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',wikipedia-daily-metrics,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -146,7 +175,8 @@ jobs:
         run: python jobs/wikipedia-daily-metrics.py
 
       - name: run go-fund-me
-        if: ${{ !cancelled() }}
+        id: go-fund-me
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',go-fund-me,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -154,7 +184,8 @@ jobs:
         run: python jobs/go-fund-me.py
 
       - name: run ny-lottery-winning-numbers
-        if: ${{ !cancelled() }}
+        id: ny-lottery-winning-numbers
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',ny-lottery-winning-numbers,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -162,7 +193,8 @@ jobs:
         run: python jobs/ny-lottery-winning-numbers.py
 
       - name: run treasury-daily
-        if: ${{ !cancelled() }}
+        id: treasury-daily
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',treasury-daily,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -170,7 +202,8 @@ jobs:
         run: python jobs/treasury-daily.py
 
       - name: run tmdb-now-playing
-        if: ${{ !cancelled() }}
+        id: tmdb-now-playing
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',tmdb-now-playing,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -179,7 +212,8 @@ jobs:
         run: python jobs/tmdb-now-playing.py
 
       - name: run lds-meetinghouses
-        if: ${{ !cancelled() }}
+        id: lds-meetinghouses
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',lds-meetinghouses,') }}
         timeout-minutes: 20 # one ~60-second, ~16 MB request; room for retries
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -187,7 +221,8 @@ jobs:
         run: python jobs/lds-meetinghouses.py
 
       - name: run lds-temples
-        if: ${{ !cancelled() }}
+        id: lds-temples
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',lds-temples,') }}
         timeout-minutes: 20 # ~385 details pages, 4 at a time; room for retries
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -195,7 +230,8 @@ jobs:
         run: python jobs/lds-temples.py
 
       - name: run faa-aircraft-registry
-        if: ${{ !cancelled() }}
+        id: faa-aircraft-registry
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',faa-aircraft-registry,') }}
         timeout-minutes: 15 # one ~73 MB download and upload; room for retries
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -203,7 +239,8 @@ jobs:
         run: python jobs/faa-aircraft-registry.py
 
       - name: run cnn-fear-greed
-        if: ${{ !cancelled() }}
+        id: cnn-fear-greed
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',cnn-fear-greed,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -211,7 +248,8 @@ jobs:
         run: python jobs/cnn-fear-greed.py
 
       - name: run lds-newsroom-rss
-        if: ${{ !cancelled() }}
+        id: lds-newsroom-rss
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',lds-newsroom-rss,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -219,7 +257,8 @@ jobs:
         run: python jobs/lds-newsroom-rss.py
 
       - name: run aaa-gas-prices
-        if: ${{ !cancelled() }}
+        id: aaa-gas-prices
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',aaa-gas-prices,') }}
         timeout-minutes: 40 # ~103 requests at robots.txt's 10-second crawl delay is ~17 minutes; room for retries
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -227,7 +266,8 @@ jobs:
         run: python jobs/aaa-gas-prices.py
 
       - name: run netflix-top-10
-        if: ${{ !cancelled() }}
+        id: netflix-top-10
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',netflix-top-10,') }}
         timeout-minutes: 10 # ~35 MB of downloads when Netflix has a new weekly release; a few seconds otherwise
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -235,9 +275,19 @@ jobs:
         run: python jobs/netflix-top-10.py
 
       - name: run billboard-hot-100
-        if: ${{ !cancelled() }}
+        id: billboard-hot-100
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',billboard-hot-100,') }}
         timeout-minutes: 10 # one ~3 MB page; saves only when Billboard publishes a new weekly chart
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/billboard-hot-100.py
+
+      - name: record this run
+        if: ${{ always() }}
+        timeout-minutes: 3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          STEPS: ${{ toJSON(steps) }}
+        run: python tools/run_log.py record

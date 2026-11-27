@@ -6,7 +6,13 @@ name: job_5
 on:
   workflow_dispatch:
   schedule:
-    - cron: '7 * * * *' # hourly at :07 (off the top of the hour, when GitHub queues are busiest)
+    - cron: '11,31,51 * * * *' # hourly; tries at :11, :31 and :51, away from the busy top of the hour
+
+# Attempts queue behind a running one rather than overlap, so its record is
+# saved before the next attempt checks what this period still needs.
+concurrency:
+  group: job_5
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -28,12 +34,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Scheduled attempts skip scripts that already succeeded this period
+      # (see tools/run_log.py); manual runs run everything.
+      - name: check earlier runs this period
+        id: gate
+        timeout-minutes: 3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python tools/run_log.py gate
+
       # Each script runs in its own step, so one failing or hung script doesn't skip
       # the rest; the run is still marked failed if any step fails. Each step gets
       # only the secrets its script needs.
 
       - name: run open-meteo-weather-hourly
-        if: ${{ !cancelled() }}
+        id: open-meteo-weather-hourly
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',open-meteo-weather-hourly,') }}
         timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -41,7 +58,8 @@ jobs:
         run: python jobs/open-meteo-weather-hourly.py
 
       - name: run citibike-station-status
-        if: ${{ !cancelled() }}
+        id: citibike-station-status
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',citibike-station-status,') }}
         timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -49,7 +67,8 @@ jobs:
         run: python jobs/citibike-station-status.py
 
       - name: run faa-airport-status
-        if: ${{ !cancelled() }}
+        id: faa-airport-status
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',faa-airport-status,') }}
         timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -57,7 +76,8 @@ jobs:
         run: python jobs/faa-airport-status.py
 
       - name: run metro-north-trip-updates
-        if: ${{ !cancelled() }}
+        id: metro-north-trip-updates
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',metro-north-trip-updates,') }}
         timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -65,7 +85,8 @@ jobs:
         run: python jobs/metro-north-trip-updates.py
 
       - name: run metro-north-service-alerts
-        if: ${{ !cancelled() }}
+        id: metro-north-service-alerts
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',metro-north-service-alerts,') }}
         timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -73,7 +94,8 @@ jobs:
         run: python jobs/metro-north-service-alerts.py
 
       - name: run polymarket-markets
-        if: ${{ !cancelled() }}
+        id: polymarket-markets
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',polymarket-markets,') }}
         timeout-minutes: 4 # ~60 requests, normally ~30 seconds
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -81,9 +103,19 @@ jobs:
         run: python jobs/polymarket-markets.py
 
       - name: run nyc-subway-train-positions
-        if: ${{ !cancelled() }}
+        id: nyc-subway-train-positions
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',nyc-subway-train-positions,') }}
         timeout-minutes: 4 # 8 small feeds plus a ~6 MB static zip, normally ~15 seconds
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/nyc-subway-train-positions.py
+
+      - name: record this run
+        if: ${{ always() }}
+        timeout-minutes: 3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          STEPS: ${{ toJSON(steps) }}
+        run: python tools/run_log.py record

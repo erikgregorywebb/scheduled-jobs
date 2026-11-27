@@ -62,18 +62,35 @@ def env_block(secrets, indent):
 def render_workflow(name, wf, jobs):
     out = [HEADER, f'# {wf["description"]}\n' if wf.get('description') else '', f'\nname: {name}\n\non:\n  workflow_dispatch:\n  schedule:\n',
            f"    - cron: '{wf['cron']}'{comment(wf.get('cron_note'))}\n\n",
+           '# Attempts queue behind a running one rather than overlap, so its record is\n'
+           '# saved before the next attempt checks what this period still needs.\n'
+           f'concurrency:\n  group: {name}\n  cancel-in-progress: false\n\n',
            'jobs:\n  build:\n    runs-on: ubuntu-latest\n',
            f'    timeout-minutes: {wf["timeout"]}{comment(wf.get("timeout_note"))}\n    steps:\n\n',
            PYTHON_SETUP, '\n',
+           '      # Scheduled attempts skip scripts that already succeeded this period\n'
+           '      # (see tools/run_log.py); manual runs run everything.\n'
+           '      - name: check earlier runs this period\n'
+           '        id: gate\n'
+           '        timeout-minutes: 3\n',
+           env_block([], 8),
+           '        run: python tools/run_log.py gate\n\n',
            '      # Each script runs in its own step, so one failing or hung script doesn\'t skip\n'
            '      # the rest; the run is still marked failed if any step fails. Each step gets\n'
            '      # only the secrets its script needs.\n']
     for job_name, job in jobs:
         out.append(f'\n      - name: run {job_name}\n')
-        out.append('        if: ${{ !cancelled() }}\n')
+        out.append(f'        id: {job_name}\n')
+        out.append(f"        if: ${{{{ !cancelled() && !contains(steps.gate.outputs.done, ',{job_name},') }}}}\n")
         out.append(f'        timeout-minutes: {job["timeout"]}{comment(job.get("timeout_note"))}\n')
         out.append(env_block(job.get('secrets', []), 8))
         out.append(f'        run: python jobs/{job["script"]}\n')
+    out.append('\n      - name: record this run\n'
+               '        if: ${{ always() }}\n'
+               '        timeout-minutes: 3\n')
+    out.append(env_block([], 8))
+    out.append('          STEPS: ${{ toJSON(steps) }}\n'
+               '        run: python tools/run_log.py record\n')
     return ''.join(out)
 
 
@@ -146,6 +163,8 @@ def render_readme_tables(m):
     return '\n'.join(lines)
 
 
+STEP_ID = re.compile(r'[A-Za-z_][A-Za-z0-9_-]*')
+RESERVED_STEP_IDS = {'gate'}
 ENV_READ = re.compile(r"""os\.(?:environ\[|environ\.get\(|getenv\()\s*['"]([A-Z0-9_]+)['"]""")
 
 
@@ -180,8 +199,16 @@ def validate(m):
         if not (ROOT / item['script']).is_file():
             errors.append(f'inactive: {item["script"]} does not exist')
     for name in workflows:
-        if not any(j['workflow'] == name for j in m['jobs'].values()):
+        freqs = {j.get('frequency') for j in m['jobs'].values() if j['workflow'] == name}
+        if not freqs:
             errors.append(f'workflows.{name} has no jobs')
+        elif len(freqs) > 1:
+            errors.append(f'workflows.{name}: its jobs must share one frequency (it sets the period '
+                          f'tools/run_log.py skips repeat attempts in), got {sorted(map(str, freqs))}')
+    for name in m['jobs']:
+        if not STEP_ID.fullmatch(name) or name in RESERVED_STEP_IDS:
+            errors.append(f'jobs.{name}: job names are used as step ids, so must match {STEP_ID.pattern} '
+                          f'and not be {sorted(RESERVED_STEP_IDS)}')
     return errors
 
 

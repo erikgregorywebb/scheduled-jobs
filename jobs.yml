@@ -6,7 +6,13 @@
 # CI runs:         python tools/manifest.py --check  (fails if they're out of date)
 #
 # workflows: one GitHub Actions workflow each; jobs run one step after another.
-#   cron / cron_note       schedule (UTC) and why
+#   cron / cron_note       schedule (UTC) and why. GitHub delays and drops
+#                          scheduled runs, so each workflow is tried several
+#                          times per period (an hour, 4-hour block or UTC day,
+#                          from its jobs' frequency, which they must share).
+#                          The first attempt to start runs the scripts; later
+#                          ones skip whatever already succeeded that period
+#                          (tools/run_log.py, which also records every run).
 #   timeout / timeout_note whole-run limit in minutes
 #
 # jobs: one script each, in jobs/, in the order its workflow runs them.
@@ -30,46 +36,46 @@
 workflows:
   job_1:
     description: Daily jobs.
-    cron: '13 8 * * *'
-    cron_note: daily at 08:13 UTC (off the top of the hour, when GitHub queues are busiest)
+    cron: '13 8,11,14,17,20,23 * * *'
+    cron_note: daily; tries at 08:13 UTC, then every 3 hours until 23:13
     timeout: 60
     timeout_note: a full run normally takes ~2 minutes
   job_2:
     description: Every-4-hours jobs.
-    cron: '17 */4 * * *'
-    cron_note: every 4 hours at :17 (00:17, 04:17, ... UTC), off the top of the hour
+    cron: '17 * * * *'
+    cron_note: every 4 hours (00-04, 04-08, ... UTC); tries hourly at :17, 4 times per block
     timeout: 15
     timeout_note: normally under a minute; a hang can't overlap the next run
   job_3:
     description: Daily jobs (ported from R in 2026-11).
-    cron: '29 8 * * *'
-    cron_note: daily at 08:29 UTC (off the top of the hour, staggered after job_1)
+    cron: '29 8,11,14,17,20,23 * * *'
+    cron_note: daily; tries at 08:29 UTC (after job_1), then every 3 hours until 23:29
     timeout: 45
   job_4:
     description: Daily Pinal County parcels scrape, the slowest job.
-    cron: '43 8 * * *'
-    cron_note: daily at 08:43 UTC (off the top of the hour, staggered after job_3)
+    cron: '43 8,11,14,17,20,23 * * *'
+    cron_note: daily; tries at 08:43 UTC (after job_3), then every 3 hours until 23:43
     timeout: 45
     timeout_note: a run normally takes ~7 minutes
   job_5:
     description: Hourly jobs.
-    cron: '7 * * * *'
-    cron_note: hourly at :07 (off the top of the hour, when GitHub queues are busiest)
+    cron: '11,31,51 * * * *'
+    cron_note: hourly; tries at :11, :31 and :51, away from the busy top of the hour
     timeout: 10
   job_6:
     description: Daily weather backfill, after the previous New York day has ended.
-    cron: '23 6 * * *'
-    cron_note: daily at 06:23 UTC (1:23/2:23 am Eastern)
+    cron: '23 6,9,12,15,18,21 * * *'
+    cron_note: daily; tries at 06:23 UTC (1:23/2:23 am Eastern), then every 3 hours until 21:23
     timeout: 10
   job_7:
     description: Daily Ski Utah snow reports. Utah resorts post their morning reports between about 5 and 7 am Mountain time, which none of the overnight workflows run after.
-    cron: '37 14 * * *'
-    cron_note: daily at 14:37 UTC (7:37 am MST / 8:37 am MDT)
+    cron: '37 14,16,18,20,22 * * *'
+    cron_note: daily; tries at 14:37 UTC (7:37 am MST / 8:37 am MDT), then every 2 hours until 22:37
     timeout: 15
   job_8:
-    description: Daily freshness check of every job's S3 output, after the overnight daily jobs finish.
-    cron: '47 11 * * *'
-    cron_note: daily at 11:47 UTC, ~3 hours after the last overnight daily workflow starts
+    description: Daily freshness check of every job's S3 output, after the overnight daily jobs finish, and a summary of every workflow's runs.
+    cron: '47 11,14,17,20,23 * * *'
+    cron_note: daily; tries at 11:47 UTC (~3 hours after the overnight dailies), then every 3 hours until 23:47
     timeout: 10
 
 jobs:
@@ -536,6 +542,15 @@ jobs:
     outputs:
       - data-pipeline-logs/freshness/freshness-
     description: "Checks every job's S3 output listed in jobs.yml: fails (so GitHub emails) when a job's newest file is older than its schedule allows, or much smaller than usual, and saves the report, dumps to S3."
+
+  run-summary:
+    script: run-summary.py
+    workflow: job_8
+    frequency: Daily
+    timeout: 5
+    outputs:
+      - data-pipeline-logs/run-summary/run-summary-
+    description: "Summarizes the last week of workflow runs from the records each run writes (data-pipeline-logs/runs/): per workflow and day, how many hours, 4-hour blocks or days got a run, how many completed, attempts, failures and how late scheduled runs started, dumps to S3."
 
 inactive:
   - script: archive/spotify-playlist-history.py

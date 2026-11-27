@@ -6,7 +6,13 @@ name: job_7
 on:
   workflow_dispatch:
   schedule:
-    - cron: '37 14 * * *' # daily at 14:37 UTC (7:37 am MST / 8:37 am MDT)
+    - cron: '37 14,16,18,20,22 * * *' # daily; tries at 14:37 UTC (7:37 am MST / 8:37 am MDT), then every 2 hours until 22:37
+
+# Attempts queue behind a running one rather than overlap, so its record is
+# saved before the next attempt checks what this period still needs.
+concurrency:
+  group: job_7
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -28,14 +34,34 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Scheduled attempts skip scripts that already succeeded this period
+      # (see tools/run_log.py); manual runs run everything.
+      - name: check earlier runs this period
+        id: gate
+        timeout-minutes: 3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python tools/run_log.py gate
+
       # Each script runs in its own step, so one failing or hung script doesn't skip
       # the rest; the run is still marked failed if any step fails. Each step gets
       # only the secrets its script needs.
 
       - name: run ski-utah-snow-reports
-        if: ${{ !cancelled() }}
+        id: ski-utah-snow-reports
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',ski-utah-snow-reports,') }}
         timeout-minutes: 10 # a run normally takes about a minute
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/ski-utah-snow-reports.py
+
+      - name: record this run
+        if: ${{ always() }}
+        timeout-minutes: 3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          STEPS: ${{ toJSON(steps) }}
+        run: python tools/run_log.py record
