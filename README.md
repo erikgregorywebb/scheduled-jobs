@@ -48,6 +48,14 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `cnn-fear-greed.py`  | Python  | Daily  | Snapshots the [CNN Fear & Greed Index](https://www.cnn.com/markets/fear-and-greed) from the JSON endpoint behind the page: the headline score and rating (with previous close, 1-week, 1-month and 1-year comparisons), its seven component indicators, and about a year of daily history for each, dumps to S3. | Job 1 |
 | `ski-utah-snow-reports.py`  | Python  | Daily  | Collects the morning snow report for every Utah resort on [Ski Utah](https://www.skiutah.com/snowreport), with the 11 Wasatch Range resorts flagged: overnight, 24-hour, 48-hour and 7-day snowfall, base depth, season total, runs, lifts and parks open, hours or opening date, and the resort's comments, plus each resort's daily base depth and season snowfall so far this season, dumps to S3. | Job 7 |
 
+## Home
+
+Run on an always-on machine on the home network, not by GitHub Actions, because the data source is only reachable from inside the house. Setup notes sit next to each script.
+
+| Name  | Type | Description |
+| ------------- | ------------- | ------------- |
+| `router-bandwidth.py`  | Python  | Samples the home router's internet byte and packet counters over UPnP every 10 seconds, corrects for counter wraps and reboots, and dumps per-minute household upload/download totals to S3 under `router/bandwidth/` hourly. See [setup](jobs/router-bandwidth.md). |
+
 ## Inactive
 
 Not scheduled in any workflow.
