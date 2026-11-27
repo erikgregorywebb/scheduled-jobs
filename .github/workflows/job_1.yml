@@ -152,3 +152,8 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 10
         run: python jobs/lds-newsroom-rss.py
+
+      - name: run aaa-gas-prices
+        if: ${{ !cancelled() }}
+        timeout-minutes: 40 # ~103 requests at robots.txt's 10-second crawl delay is ~17 minutes; room for retries
+        run: python jobs/aaa-gas-prices.py

@@ -47,6 +47,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `tmdb-now-playing.py`  | Python  | Daily  | Collects the movies currently in US theaters from [TMDB](https://developer.themoviedb.org/reference/movie-now-playing-list)'s now playing endpoint, dumps to S3. | Job 1 |
 | `cnn-fear-greed.py`  | Python  | Daily  | Snapshots the [CNN Fear & Greed Index](https://www.cnn.com/markets/fear-and-greed) from the JSON endpoint behind the page: the headline score and rating (with previous close, 1-week, 1-month and 1-year comparisons), its seven component indicators, and about a year of daily history for each, dumps to S3. | Job 1 |
 | `ski-utah-snow-reports.py`  | Python  | Daily  | Collects the morning snow report for every Utah resort on [Ski Utah](https://www.skiutah.com/snowreport), with the 11 Wasatch Range resorts flagged: overnight, 24-hour, 48-hour and 7-day snowfall, base depth, season total, runs, lifts and parks open, hours or opening date, and the resort's comments, plus each resort's daily base depth and season snowfall so far this season, dumps to S3. | Job 7 |
+| `aaa-gas-prices.py`  | Python  | Daily  | Collects [AAA](https://gasprices.aaa.com/)'s national, state (50 + DC), metro-area, and county gas price averages by grade (current, yesterday, week, month and year ago), plus record highs, dumps to S3 under `aaa-gas-prices/`. | Job 1 |
 
 ## Inactive
 
