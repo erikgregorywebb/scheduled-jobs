@@ -41,7 +41,7 @@ PREFIX = 'lds-newsroom/'
 # the feed always lists 25 items; far fewer means a truncated or broken response
 MIN_ITEMS = 10
 
-# download, retrying transient failures
+# download, retrying transient failures and fast-failing other 4xx
 xml = None
 for attempt in range(1, 4):
     try:
@@ -49,6 +49,8 @@ for attempt in range(1, 4):
         if r.status_code == 200:
             xml = r.content
             break
+        if r.status_code < 500 and r.status_code != 429:
+            raise SystemExit(f'Request failed with status {r.status_code}: {r.text[:200]}')
         print(f'Attempt {attempt}: status {r.status_code}')
     except requests.RequestException as e:
         print(f'Attempt {attempt}: {e}')
