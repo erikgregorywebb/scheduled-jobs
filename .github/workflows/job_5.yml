@@ -31,3 +31,12 @@ jobs:
 
         run: |
           python jobs/open-meteo-weather-hourly.py
+
+      - name: execute citibike py script
+        if: ${{ !cancelled() }} # run even if the weather script failed
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+        run: |
+          python jobs/citibike-station-status.py
