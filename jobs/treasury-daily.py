@@ -134,14 +134,20 @@ def collect_fiscal():
         print(f'{name}: {len(data)} rows')
         save(name, data)
 
-# run each source separately so one outage doesn't lose the others
+# run each source separately so one outage doesn't lose the others.
+# Fiscal Data is optional: its API keeps full history, so a missed day is
+# recovered on the next run that succeeds, and the API has had long outages
+# (all 504s on 2026-11-27), so a failure there only logs a warning.
 errors = []
-for collector in [collect_yields, collect_auctions, collect_fiscal]:
+for collector, required in [(collect_yields, True), (collect_auctions, True), (collect_fiscal, False)]:
     try:
         collector()
     except Exception as e:
-        print(f'FAILED {collector.__name__}: {e!r}')
-        errors.append(collector.__name__)
+        if required:
+            print(f'FAILED {collector.__name__}: {e!r}')
+            errors.append(collector.__name__)
+        else:
+            print(f'WARNING {collector.__name__} skipped, will retry next run: {e!r}')
 
 if errors:
     raise SystemExit(f'Some Treasury sources failed: {", ".join(errors)}')
