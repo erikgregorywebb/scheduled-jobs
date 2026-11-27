@@ -11,7 +11,8 @@ import os
 import pandas as pd
 
 # Saves the Billboard Hot 100 (https://www.billboard.com/charts/hot-100/) to S3: one row per song
-# with rank, title, artist, last week's rank, peak rank, weeks on chart and a new / re-entry flag.
+# with rank, title, artist, last week's rank, peak rank, weeks at No. 1 (for songs that peaked
+# there), weeks on chart and a new / re-entry flag.
 # Billboard publishes the chart on Tuesdays, dated the Saturday of the following week, and the page
 # only ever shows the current chart. This runs daily and saves a chart only the first time it sees
 # that chart date, so each saved file is one weekly chart. The raw page is saved gzipped beside the
@@ -28,7 +29,7 @@ HEADERS = {'User-Agent': 'Mozilla/5.0 (compatible; scheduled-jobs data collector
 BUCKET = 'egw-data-dumps'
 PREFIX = 'billboard-hot-100/'
 COLUMNS = ['chart_date', 'rank', 'title', 'artist', 'last_week', 'peak_position',
-           'weeks_on_chart', 'status']
+           'weeks_at_no_1', 'weeks_on_chart', 'status']
 MONTHS = 'January|February|March|April|May|June|July|August|September|October|November|December'
 
 
@@ -66,30 +67,35 @@ def chart_date_of(soup, html):
     return None, None
 
 
+# stat labels on each row, each followed by its value in the next span; the row shows the block
+# twice (desktop and mobile layouts, in different orders), and both copies must agree
+LABELS = {'LW': 'last_week', 'PEAK': 'peak_position', 'WEEKS AT NO. 1': 'weeks_at_no_1',
+          'WEEKS ON CHART': 'weeks_on_chart'}
+
+
 def parse_row(row):
-    # one <ul class="o-chart-results-list-row"> per song
+    # one <ul class="o-chart-results-list-row"> per song: rank, title, artist, then the stats
     title_el = row.find('h3', id='title-of-a-story') or row.find('h3')
     if title_el is None:
         return None
     artist_el = title_el.find_next_sibling('span')
-    # every short label in the row: rank first, last week / peak / weeks on chart last,
-    # with the NEW or RE-ENTRY badge (if any) in between
     labels = [clean(s.get_text()) for s in row.find_all('span')]
-    numbers = [t for t in labels if re.fullmatch(r'\d+|-', t)]
+    entry = {'rank': labels[0] if labels else '', 'title': clean(title_el.get_text()),
+             'artist': clean(artist_el.get_text()) if artist_el is not None else ''}
+    seen = {}
+    for i, text in enumerate(labels[:-1]):
+        if text.upper() in LABELS:
+            seen.setdefault(LABELS[text.upper()], set()).add(labels[i + 1])
+    for column in LABELS.values():
+        values = seen.get(column, set())
+        if len(values) > 1:
+            entry['problem'] = f'{column} differs between the two stat blocks: {sorted(values)}'
+        value = next(iter(values), '')
+        entry[column] = '' if value == '-' else value
     words = {re.sub(r'[\s-]+', '', t).upper() for t in labels}
-    status = 're-entry' if 'REENTRY' in words else 'new' if 'NEW' in words else ''
-    if len(numbers) < 4:
-        return {'title': clean(title_el.get_text()), 'numbers': numbers}
-    return {
-        'rank': numbers[0],
-        'title': clean(title_el.get_text()),
-        'artist': clean(artist_el.get_text()) if artist_el is not None else '',
-        'last_week': '' if numbers[-3] == '-' else numbers[-3],
-        'peak_position': numbers[-2],
-        'weeks_on_chart': numbers[-1],
-        'status': status,
-        'numbers': numbers,
-    }
+    entry['status'] = 're-entry' if 'REENTRY' in words else 'new' if 'NEW' in words else ''
+    entry['spans'] = labels
+    return entry
 
 
 def describe(soup, rows):
@@ -117,25 +123,34 @@ def parse(html):
     entries = [e for e in (parse_row(r) for r in rows) if e is not None]
     if len(entries) != 100:
         problems.append(f'{len(entries)} songs found, expected 100')
-    bad = [e for e in entries if 'rank' not in e]
-    if bad:
-        problems.append(f'{len(bad)} rows without rank/last week/peak/weeks, e.g. {bad[0]}')
-    good = [e for e in entries if 'rank' in e]
-    if not bad and [int(e['rank']) for e in good] != list(range(1, len(good) + 1)):
-        problems.append(f'ranks are not 1..{len(good)} in order: {[e["rank"] for e in good][:10]}...')
-    for e in good:
+    integer = re.compile(r'\d+')
+    for e in entries:
+        where = f'row {e["rank"]!r} ({e["title"]} by {e["artist"]})'
+        if 'problem' in e:
+            problems.append(f'{where}: {e["problem"]}')
+        missing = [c for c in ('rank', 'peak_position', 'weeks_on_chart') if not integer.fullmatch(e[c])]
+        if missing or (e['last_week'] and not integer.fullmatch(e['last_week'])) \
+                or (e['weeks_at_no_1'] and not integer.fullmatch(e['weeks_at_no_1'])):
+            problems.append(f'{where}: missing or non-numeric {missing or "last week / weeks at no. 1"}, '
+                            f'spans {e["spans"][:20]}')
+            continue
         rank, peak, weeks = int(e['rank']), int(e['peak_position']), int(e['weeks_on_chart'])
         if not e['title'] or not e['artist']:
-            problems.append(f'rank {rank}: missing title or artist ({e})')
+            problems.append(f'{where}: missing title or artist')
         if peak > rank or (e['last_week'] and peak > int(e['last_week'])) or weeks < 1:
-            problems.append(f'rank {rank}: inconsistent last week / peak / weeks ({e})')
+            problems.append(f'{where}: inconsistent last week / peak / weeks, spans {e["spans"][:20]}')
+        if bool(e['weeks_at_no_1']) != (peak == 1):
+            problems.append(f'{where}: peak {peak} but weeks at no. 1 is {e["weeks_at_no_1"]!r}')
         if e['last_week'] == '' and weeks > 1 and e['status'] != 're-entry':
             # a song with no last-week rank and more than one week must be re-entering
-            problems.append(f'rank {rank}: no last-week rank but {weeks} weeks and no RE-ENTRY badge ({e})')
+            problems.append(f'{where}: no last-week rank but {weeks} weeks and no RE-ENTRY badge, '
+                            f'spans {e["spans"][:20]}')
+    if not problems and [int(e['rank']) for e in entries] != list(range(1, 101)):
+        problems.append(f'ranks are not 1..100 in order: {[e["rank"] for e in entries][:10]}...')
     if problems:
         raise RuntimeError('Hot 100 page did not parse as expected:\n  - '
                            + '\n  - '.join(problems[:10]) + '\nWhat the page had:\n' + describe(soup, rows))
-    df = pd.DataFrame(good)
+    df = pd.DataFrame(entries)
     df.insert(0, 'chart_date', chart_date.isoformat())
     return df[COLUMNS], chart_date, date_source
 
