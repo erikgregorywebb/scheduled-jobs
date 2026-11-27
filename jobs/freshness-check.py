@@ -64,7 +64,7 @@ for name, job in manifest['jobs'].items():
         })
         earlier = [o['Size'] for o in files[-1 - SIZE_HISTORY:-1]]
         if len(earlier) >= MIN_SIZE_HISTORY and statistics.median(earlier) > 0:
-            row['median_earlier_size'] = statistics.median(earlier)
+            row['median_earlier_size'] = round(statistics.median(earlier))  # a whole number of bytes, for the Int64 column
             row['size_ratio'] = round(newest['Size'] / row['median_earlier_size'], 3)
         if age > max_age:
             row['status'] = 'stale'
