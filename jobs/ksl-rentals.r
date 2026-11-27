@@ -43,6 +43,6 @@ raw = do.call(rbind, datalist)
 ####### EXPORT ####### 
 writeToS3 = function(file,bucket,filename){
   s3write_using(file, FUN = write.csv, bucket = bucket, object = filename)
-  print(paste('Copy ', nrow(df), ' rows to S3 Bucket ', bucket, ' at ', filename, ' Done!'))
+  print(paste('Copy ', nrow(file), ' rows to S3 Bucket ', bucket, ' at ', filename, ' Done!'))
 }
 writeToS3(raw, 'egw-data-dumps', paste('ksl/ksl-rentals-' , format(datetime, '%Y-%m-%d-%H-%M-%S'), '.csv', sep = ''))

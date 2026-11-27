@@ -29,17 +29,53 @@ jobs:
           any::httr
           any::jsonlite
     
-    # Run script
-    - name: run scripts
+    # Run each script in its own step, so one failing script doesn't skip the rest.
+    # The run is still marked failed if any step fails.
+    - name: run zillow-scrape
+      if: ${{ !cancelled() }}
       env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      
-      run: |
-        Rscript jobs/zillow-scrape.r
-        Rscript jobs/tsa-passenger-volumes.r
-        Rscript jobs/mta-lift-status.r
-        Rscript jobs/nyrr-races.r
-        Rscript jobs/ksl-rentals.r
-        Rscript jobs/hacker-news.r
-        Rscript jobs/travel-advisories.r
+      run: Rscript jobs/zillow-scrape.r
+
+    - name: run tsa-passenger-volumes
+      if: ${{ !cancelled() }}
+      env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: Rscript jobs/tsa-passenger-volumes.r
+
+    - name: run mta-lift-status
+      if: ${{ !cancelled() }}
+      env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: Rscript jobs/mta-lift-status.r
+
+    - name: run nyrr-races
+      if: ${{ !cancelled() }}
+      env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: Rscript jobs/nyrr-races.r
+
+    - name: run ksl-rentals
+      if: ${{ !cancelled() }}
+      env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: Rscript jobs/ksl-rentals.r
+
+    - name: run hacker-news
+      if: ${{ !cancelled() }}
+      env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: Rscript jobs/hacker-news.r
+
+    - name: run travel-advisories
+      if: ${{ !cancelled() }}
+      env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: Rscript jobs/travel-advisories.r
