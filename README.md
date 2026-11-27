@@ -1,5 +1,7 @@
 # Scheduled Jobs
 
+A summary of every job, with live run status, is published at https://erikgregorywebb.github.io/scheduled-jobs/. It's built by `site/build.py` and deployed by the `pages` workflow on each push to `main` that touches `jobs/`, the workflows, `site/` or this README. To preview it locally: `pip install pyyaml && python site/build.py`, then open `_site/index.html`.
+
 ## Active
 
 Scheduled to run by the GitHub Actions workflow named in the Job column.
