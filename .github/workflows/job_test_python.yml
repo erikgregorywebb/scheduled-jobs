@@ -40,15 +40,18 @@ jobs:
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           LAST_FM_API_KEY: ${{ secrets.LAST_FM_API_KEY }}
           NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           SCRIPTS: ${{ inputs.scripts }} # passed via env, not inlined into the shell
 
         run: |
-          set -e
+          # run every script even if one fails, then fail the step if any did
+          failed=""
           for script in $SCRIPTS; do
             case "$script" in
               */*|..*) echo "Expected a file name in jobs/, got: $script"; exit 1 ;;
             esac
             echo "::group::$script"
-            python "jobs/$script"
+            python "jobs/$script" || { echo "::error::$script failed"; failed="$failed $script"; }
             echo "::endgroup::"
           done
+          if [ -n "$failed" ]; then echo "Failed:$failed"; exit 1; fi
