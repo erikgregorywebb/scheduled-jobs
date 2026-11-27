@@ -137,3 +137,8 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 15 # one ~73 MB download and upload; room for retries
         run: python jobs/faa-aircraft-registry.py
+
+      - name: run aaa-gas-prices
+        if: ${{ !cancelled() }}
+        timeout-minutes: 40 # ~103 requests at robots.txt's 10-second crawl delay is ~17 minutes; room for retries
+        run: python jobs/aaa-gas-prices.py

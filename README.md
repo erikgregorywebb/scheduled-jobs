@@ -40,6 +40,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `treasury-daily.py`  | Python  | Daily  | Collects US Treasury yield curves, auction results and upcoming auctions, Debt to the Penny, and the daily cash balance from [home.treasury.gov](https://home.treasury.gov/resource-center/data-chart-center/interest-rates), [TreasuryDirect](https://www.treasurydirect.gov/), and [Fiscal Data](https://fiscaldata.treasury.gov/), dumps to S3. | Job 1 |
 | `faa-aircraft-registry.py`  | Python  | Daily  | Saves the FAA's full [aircraft registry database](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download) zip (every US-registered aircraft, owner, and deregistration) whenever the FAA publishes a new release, dumps to S3. | Job 1 |
 | `tmdb-now-playing.py`  | Python  | Daily  | Collects the movies currently in US theaters from [TMDB](https://developer.themoviedb.org/reference/movie-now-playing-list)'s now playing endpoint, dumps to S3. | Job 1 |
+| `aaa-gas-prices.py`  | Python  | Daily  | Collects [AAA](https://gasprices.aaa.com/)'s national, state (50 + DC), metro-area, and county gas price averages by grade (current, yesterday, week, month and year ago), plus record highs, dumps to S3 under `aaa-gas-prices/`. | Job 1 |
 
 ## Inactive
 
