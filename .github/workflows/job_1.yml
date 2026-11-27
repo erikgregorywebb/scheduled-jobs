@@ -142,3 +142,8 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 10
         run: python jobs/cnn-fear-greed.py
+
+      - name: run lds-newsroom-rss
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: python jobs/lds-newsroom-rss.py
