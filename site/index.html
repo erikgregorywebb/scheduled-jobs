@@ -407,7 +407,7 @@ async function gh(path) {
 }
 
 async function loadLive() {
-  const cached = store.get('live-v1');
+  const cached = store.get('live-v2');
   if (cached && cached.commit === DATA.commit && Date.now() - cached.at < 5 * 60 * 1000) {
     Object.assign(live, cached.live);
     return;
@@ -419,16 +419,26 @@ async function loadLive() {
       id: r.id, status: r.status, conclusion: r.conclusion, event: r.event,
       run_started_at: r.run_started_at, updated_at: r.updated_at, html_url: r.html_url,
     }));
-    const last = live.runs[w.file].find((r) => r.status === 'completed');
-    if (!last) return;
-    const jobs = await gh(`/actions/runs/${last.id}/jobs`);
-    const steps = jobs.jobs.flatMap((job) => (job.steps || []).map((s) => ({ ...s, job_url: job.html_url })));
-    for (const s of w.scripts) {
-      const step = steps.find((x) => x.name === s.step_name);
-      if (step) live.steps[s.script] = { conclusion: step.conclusion, started_at: step.started_at, completed_at: step.completed_at, html_url: step.job_url };
+    // Later attempts in a period skip the scripts an earlier one already ran
+    // (tools/run_log.py), so walk back through recent runs until each script
+    // has a step that actually ran.
+    const pending = new Set(w.scripts.map((s) => s.script));
+    const completed = live.runs[w.file].filter((r) => r.status === 'completed');
+    for (const run of completed.slice(0, 4)) {
+      if (!pending.size) break;
+      const jobs = await gh(`/actions/runs/${run.id}/jobs`);
+      const steps = jobs.jobs.flatMap((job) => (job.steps || []).map((s) => ({ ...s, job_url: job.html_url })));
+      for (const s of w.scripts) {
+        if (!pending.has(s.script)) continue;
+        const step = steps.find((x) => x.name === s.step_name);
+        if (step && step.conclusion !== 'skipped') {
+          live.steps[s.script] = { conclusion: step.conclusion, started_at: step.started_at, completed_at: step.completed_at, html_url: step.job_url };
+          pending.delete(s.script);
+        }
+      }
     }
   }));
-  store.set('live-v1', { at: Date.now(), commit: DATA.commit, live });
+  store.set('live-v2', { at: Date.now(), commit: DATA.commit, live });
 }
 
 function render() { renderTiles(); renderWorkflows(); renderRows(); }

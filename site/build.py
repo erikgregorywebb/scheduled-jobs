@@ -94,41 +94,53 @@ def parse_manifest():
     }
 
 
+def _cron_values(field, limit):
+    """The values a cron field of plain numbers, lists, ranges and steps matches, or None for anything else."""
+    values = set()
+    for part in field.split(','):
+        rng, _, step = part.partition('/')
+        if rng == '*':
+            lo, hi = 0, limit - 1
+        elif re.fullmatch(r'\d+-\d+', rng):
+            lo, hi = map(int, rng.split('-'))
+        elif rng.isdigit():
+            lo = int(rng)
+            hi = limit - 1 if step else lo
+        else:
+            return None
+        values.update(range(lo, hi + 1, int(step) if step else 1))
+    return sorted(values)
+
+
 def describe_cron(expr):
     """Plain-English description of the cron shapes this repo uses; falls back to the raw expression."""
     parts = expr.split()
-    if len(parts) != 5:
-        return expr
-    minute, hour, dom, month, dow = parts
-    if not minute.isdigit() or (dom, month, dow) != ('*', '*', '*'):
+    if len(parts) != 5 or tuple(parts[2:]) != ('*', '*', '*'):
         return f'cron {expr}'
-    m = int(minute)
-    if hour == '*':
-        return f'Hourly at :{m:02d}'
-    step = re.fullmatch(r'\*/(\d+)', hour)
+    minutes, hours = _cron_values(parts[0], 60), _cron_values(parts[1], 24)
+    if not minutes or not hours:
+        return f'cron {expr}'
+    at_minutes = ', '.join(f':{m:02d}' for m in minutes)
+    if parts[1] == '*':
+        return f'Tried hourly at {at_minutes}'
+    step = re.fullmatch(r'\*/(\d+)', parts[1])
     if step:
-        return f'Every {step.group(1)} hours at :{m:02d}'
-    if hour.isdigit():
-        return f'Daily at {int(hour):02d}:{m:02d} UTC'
-    return f'cron {expr}'
+        return f'Tried every {step.group(1)} hours at {at_minutes}'
+    return 'Tried at ' + ', '.join(f'{h:02d}:{m:02d}' for h in hours for m in minutes) + ' UTC'
 
 
 def runs_per_day(expr):
+    """How many times a day the cron fires."""
     parts = expr.split()
-    if len(parts) != 5 or parts[2:] != ['*', '*', '*']:
+    if len(parts) != 5 or tuple(parts[2:]) != ('*', '*', '*'):
         return None
-    minutes = 1 if parts[0].isdigit() else None
-    hour = parts[1]
-    if minutes is None:
-        return None
-    if hour == '*':
-        return 24
-    step = re.fullmatch(r'\*/(\d+)', hour)
-    if step:
-        return len(range(0, 24, int(step.group(1))))
-    if hour.isdigit():
-        return 1
-    return None
+    minutes, hours = _cron_values(parts[0], 60), _cron_values(parts[1], 24)
+    return len(minutes) * len(hours) if minutes and hours else None
+
+
+# Each workflow is tried several times per period, but its scripts run once per
+# period (tools/run_log.py), so a job's runs per day come from its frequency.
+RUNS_PER_DAY = {'Hourly': 24, 'Every 4 Hours': 6, 'Daily': 1}
 
 
 def cron_comment(path, expr):
@@ -238,8 +250,10 @@ def build():
             'status': 'active' if live else 'inactive',
             'workflows': [wf['name'] for wf, _ in live],
             'test_workflows': [wf['name'] for wf, s in entries if not wf['scheduled']],
-            'schedule': '; '.join(c['text'] for c in crons) or None,
-            'runs_per_day': sum(c['per_day'] or 0 for c in crons) or None,
+            'schedule': ', '.join(filter(None, [info.get('frequency')] + [c['text'][0].lower() + c['text'][1:] for c in crons]))
+                        if crons else None,
+            'runs_per_day': (RUNS_PER_DAY.get(info.get('frequency')) if live else None)
+                            or sum(c['per_day'] or 0 for c in crons) or None,
             'frequency': info.get('frequency'),
             'step_timeout': next((s['step_timeout'] for _, s in live if s['step_timeout']), None),
             'step_name': next((s['step_name'] for _, s in live if s['step_name']), None),

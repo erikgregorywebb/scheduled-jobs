@@ -52,6 +52,7 @@ Scheduled by the GitHub Actions workflow in the Workflow column (see `jobs.yml`)
 | `open-meteo-weather-daily.py` | Python | Daily | Backfills the previous day's 24 hourly weather readings for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3. | `job_6` |
 | `ski-utah-snow-reports.py` | Python | Daily | Collects the morning snow report for every Utah resort on [Ski Utah](https://www.skiutah.com/snowreport), with the 11 Wasatch Range resorts flagged: overnight, 24-hour, 48-hour and 7-day snowfall, base depth, season total, runs, lifts and parks open, hours or opening date, and the resort's comments, plus each resort's daily base depth and season snowfall so far this season, dumps to S3. | `job_7` |
 | `freshness-check.py` | Python | Daily | Checks every job's S3 output listed in jobs.yml: fails (so GitHub emails) when a job's newest file is older than its schedule allows, or much smaller than usual, and saves the report, dumps to S3. | `job_8` |
+| `run-summary.py` | Python | Daily | Summarizes the last week of workflow runs from the records each run writes (data-pipeline-logs/runs/): per workflow and day, how many hours, 4-hour blocks or days got a run, how many completed, attempts, failures and how late scheduled runs started, dumps to S3. | `job_8` |
 
 ## Inactive
 

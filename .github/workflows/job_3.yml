@@ -6,7 +6,13 @@ name: job_3
 on:
   workflow_dispatch:
   schedule:
-    - cron: '29 8 * * *' # daily at 08:29 UTC (off the top of the hour, staggered after job_1)
+    - cron: '29 8,11,14,17,20,23 * * *' # daily; tries at 08:29 UTC (after job_1), then every 3 hours until 23:29
+
+# Attempts queue behind a running one rather than overlap, so its record is
+# saved before the next attempt checks what this period still needs.
+concurrency:
+  group: job_3
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -28,12 +34,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Scheduled attempts skip scripts that already succeeded this period
+      # (see tools/run_log.py); manual runs run everything.
+      - name: check earlier runs this period
+        id: gate
+        timeout-minutes: 3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python tools/run_log.py gate
+
       # Each script runs in its own step, so one failing or hung script doesn't skip
       # the rest; the run is still marked failed if any step fails. Each step gets
       # only the secrets its script needs.
 
       - name: run zillow-scrape
-        if: ${{ !cancelled() }}
+        id: zillow-scrape
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',zillow-scrape,') }}
         timeout-minutes: 10 # a ~120 MB download when Zillow has published a new file
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -41,7 +58,8 @@ jobs:
         run: python jobs/zillow-scrape.py
 
       - name: run tsa-passenger-volumes
-        if: ${{ !cancelled() }}
+        id: tsa-passenger-volumes
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',tsa-passenger-volumes,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -49,7 +67,8 @@ jobs:
         run: python jobs/tsa-passenger-volumes.py
 
       - name: run mta-lift-status
-        if: ${{ !cancelled() }}
+        id: mta-lift-status
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',mta-lift-status,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -57,7 +76,8 @@ jobs:
         run: python jobs/mta-lift-status.py
 
       - name: run nyrr-races
-        if: ${{ !cancelled() }}
+        id: nyrr-races
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',nyrr-races,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -65,7 +85,8 @@ jobs:
         run: python jobs/nyrr-races.py
 
       - name: run ksl-rentals
-        if: ${{ !cancelled() }}
+        id: ksl-rentals
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',ksl-rentals,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -73,7 +94,8 @@ jobs:
         run: python jobs/ksl-rentals.py
 
       - name: run hacker-news
-        if: ${{ !cancelled() }}
+        id: hacker-news
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',hacker-news,') }}
         timeout-minutes: 10 # 10 pages, 15 seconds apart
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -81,9 +103,19 @@ jobs:
         run: python jobs/hacker-news.py
 
       - name: run travel-advisories
-        if: ${{ !cancelled() }}
+        id: travel-advisories
+        if: ${{ !cancelled() && !contains(steps.gate.outputs.done, ',travel-advisories,') }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/travel-advisories.py
+
+      - name: record this run
+        if: ${{ always() }}
+        timeout-minutes: 3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          STEPS: ${{ toJSON(steps) }}
+        run: python tools/run_log.py record
