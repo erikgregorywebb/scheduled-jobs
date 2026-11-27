@@ -38,6 +38,4 @@ Not scheduled in any workflow.
 | `lds-meetinghouses-v2.r`  | R  | Scrapes [LDS meetinghouse](https://ldsmeetinghouses.com/) locations and unit assignments, dumps to S3. |
 | `go-fund-me.r`  | R  | Scrapes [GoFundMe](https://www.gofundme.com/discover)'s trending fundraiser list, dumps to S3. |
 | `travel-advisories.r`  | R  | Scrapes the US State Department's [travel advisory](https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html/) list, dumps to S3. |
-| `compass-listings.r`  | R  | Scrapes [Compass](https://www.compass.com/) rental listings on Manhattan's Upper West Side, dumps to S3. |
-| `homie-scrape.r`  | R  | Scrapes [Homie](https://www.homie.com/) active listings in Utah County, dumps to S3. |
 | `lds-meetinghouses.r`  | R  | Original version of `lds-meetinghouses-v2.r`. |
