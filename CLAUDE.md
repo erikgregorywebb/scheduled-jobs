@@ -15,6 +15,10 @@ silently corrupt them.
   `job_test_python.yml` and the README tables from `jobs.yml`. Run
   `python tools/manifest.py` after editing `jobs.yml`; `--check` validates (CI
   runs it in `checks.yml`). Never hand-edit the generated files.
+- `site/` — the GitHub Pages summary (https://erikgregorywebb.github.io/scheduled-jobs/),
+  built by `site/build.py` from the workflows, README tables, `jobs.yml` and git
+  history, and deployed by `pages.yml` on pushes to main. It reads the README's
+  Active table by column position, which `manifest.py` keeps stable.
 - `archive/` — retired scripts, including the R originals of jobs ported to
   Python in 2026-11. Not scheduled; R is no longer used.
 
@@ -69,13 +73,14 @@ Conventions (see `.github/pull_request_template.md` for the full checklist):
 
 | Workflow | When (UTC) | What |
 | --- | --- | --- |
-| job_1 | daily 08:13 | most daily jobs |
+| job_1 | daily 08:13 | most daily jobs (AAA gas prices takes ~17 min at its crawl delay) |
 | job_2 | every 4h at :17 | Reddit comments |
 | job_3 | daily 08:29 | the jobs ported from R |
 | job_4 | daily 08:43 | Pinal County parcels (slow) |
 | job_5 | hourly at :07 | weather, Citi Bike, FAA status, Metro-North, Polymarket |
 | job_6 | daily 06:23 | previous day's weather |
-| job_7 | daily 11:47 | freshness check |
+| job_7 | daily 14:37 | Ski Utah snow reports (after resorts post) |
+| job_8 | daily 11:47 | freshness check |
 
 Crons sit off the top of the hour, when GitHub's queue is busiest. Scheduled
 runs can start late or be skipped, so the freshness limits (Hourly 4h, Every 4
@@ -92,5 +97,3 @@ Hours 9h, Daily 26h) leave slack.
   44 distinct files. `data-pipeline-logs/zillow-dedupe/` maps every removed key
   to the kept copy. Bucket versioning is off, so deletes are permanent: list and
   verify before deleting anything.
-- Some prefixes (e.g. `aaa-gas-prices/`, `ski-utah-snow-reports/`) are written
-  from branches or sessions not yet in `jobs.yml`.

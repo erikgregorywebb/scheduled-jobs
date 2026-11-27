@@ -1,0 +1,61 @@
+name: pages
+
+# Builds the jobs summary site (site/build.py) and deploys it to GitHub Pages.
+# Requires Settings > Pages > Build and deployment > Source = "GitHub Actions".
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'jobs/**'
+      - 'jobs.yml'
+      - '.github/workflows/**'
+      - 'README.md'
+      - 'site/**'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency: # one deploy at a time; a newer push replaces a queued one
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: checkout repo content
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # full history, for each script's added and last-changed dates
+
+      - name: setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+
+      - name: build site
+        run: |
+          pip install pyyaml==6.0.2
+          python site/build.py --out _site
+
+      - name: upload site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: deploy to github pages
+        id: deployment
+        uses: actions/deploy-pages@v4

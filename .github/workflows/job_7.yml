@@ -1,17 +1,17 @@
 # Generated from jobs.yml by tools/manifest.py. Edit jobs.yml and re-run it; don't edit this file.
-# Daily freshness check of every job's S3 output, after the daily jobs finish.
+# Daily Ski Utah snow reports. Utah resorts post their morning reports between about 5 and 7 am Mountain time, which none of the overnight workflows run after.
 
 name: job_7
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '47 11 * * *' # daily at 11:47 UTC, ~3 hours after the last daily workflow starts
+    - cron: '37 14 * * *' # daily at 14:37 UTC (7:37 am MST / 8:37 am MDT)
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
 
       - name: checkout repo content
@@ -32,10 +32,10 @@ jobs:
       # the rest; the run is still marked failed if any step fails. Each step gets
       # only the secrets its script needs.
 
-      - name: run freshness-check
+      - name: run ski-utah-snow-reports
         if: ${{ !cancelled() }}
-        timeout-minutes: 5
+        timeout-minutes: 10 # a run normally takes about a minute
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: python jobs/freshness-check.py
+        run: python jobs/ski-utah-snow-reports.py

@@ -62,9 +62,14 @@ workflows:
     cron_note: daily at 06:23 UTC (1:23/2:23 am Eastern)
     timeout: 10
   job_7:
-    description: Daily freshness check of every job's S3 output, after the daily jobs finish.
+    description: Daily Ski Utah snow reports. Utah resorts post their morning reports between about 5 and 7 am Mountain time, which none of the overnight workflows run after.
+    cron: '37 14 * * *'
+    cron_note: daily at 14:37 UTC (7:37 am MST / 8:37 am MDT)
+    timeout: 15
+  job_8:
+    description: Daily freshness check of every job's S3 output, after the overnight daily jobs finish.
     cron: '47 11 * * *'
-    cron_note: daily at 11:47 UTC, ~3 hours after the last daily workflow starts
+    cron_note: daily at 11:47 UTC, ~3 hours after the last overnight daily workflow starts
     timeout: 10
 
 jobs:
@@ -299,6 +304,37 @@ jobs:
       - lds-newsroom/lds-newsroom-rss-
     description: "Collects the 25 latest press releases and announcements from the [Church Newsroom](https://newsroom.churchofjesuschrist.org/)'s official [RSS feed](https://newsroom.churchofjesuschrist.org/rss), with title, link, publish date, dateline, summary and image, dumps to S3."
 
+
+  aaa-gas-prices:
+    script: aaa-gas-prices.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 40
+    timeout_note: ~103 requests at robots.txt's 10-second crawl delay is ~17 minutes; room for retries
+    outputs:
+      - aaa-gas-prices/averages/aaa-gas-prices-averages-
+      - aaa-gas-prices/counties/aaa-gas-prices-counties-
+      - aaa-gas-prices/records/aaa-gas-prices-records-
+    description: "Collects [AAA](https://gasprices.aaa.com/)'s national, state (50 + DC), metro-area, and county gas price averages by grade (current, yesterday, week, month and year ago), plus record highs, dumps to S3 under `aaa-gas-prices/`."
+
+  netflix-top-10:
+    script: netflix-top-10.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    timeout_note: ~35 MB of downloads when Netflix has a new weekly release; a few seconds otherwise
+    outputs:
+      - stem: netflix-top-10/all-weeks-global/netflix-top-10-all-weeks-global-
+        max_age_hours: 216
+        note: only saved when Netflix publishes a new week, on Tuesdays
+      - stem: netflix-top-10/united-states/netflix-top-10-united-states-
+        max_age_hours: 216
+        note: only saved when Netflix publishes a new week, on Tuesdays
+      - stem: netflix-top-10/most-popular/netflix-top-10-most-popular-
+        max_age_hours: 1080
+        note: only saved when the all-time list changes, which can be weeks apart
+    description: "Saves Netflix's official [Top 10](https://www.netflix.com/tudum/top10) TSV downloads (formerly top10.netflix.com): global weekly top 10 films and TV with hours viewed and views, the weekly US top 10 films and TV (filtered from Netflix's all-countries file), and the all-time most popular list, all back to July 2021. Netflix publishes weekly on Tuesdays, so each file is converted to CSV and saved only when it changes, dumps to S3 under `netflix-top-10/`."
+
   mormon-reddit-comments:
     script: mormon-reddit-comments.py
     workflow: job_2
@@ -455,9 +491,21 @@ jobs:
       - weather/daily/open-meteo-weather-daily-
     description: "Backfills the previous day's 24 hourly weather readings for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3."
 
+
+  ski-utah-snow-reports:
+    script: ski-utah-snow-reports.py
+    workflow: job_7
+    frequency: Daily
+    timeout: 10
+    timeout_note: a run normally takes about a minute
+    outputs:
+      - ski-utah-snow-reports/ski-utah-snow-reports-
+      - ski-utah-snow-reports/ski-utah-snow-season-
+    description: "Collects the morning snow report for every Utah resort on [Ski Utah](https://www.skiutah.com/snowreport), with the 11 Wasatch Range resorts flagged: overnight, 24-hour, 48-hour and 7-day snowfall, base depth, season total, runs, lifts and parks open, hours or opening date, and the resort's comments, plus each resort's daily base depth and season snowfall so far this season, dumps to S3."
+
   freshness-check:
     script: freshness-check.py
-    workflow: job_7
+    workflow: job_8
     frequency: Daily
     timeout: 5
     outputs:

@@ -217,3 +217,19 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/lds-newsroom-rss.py
+
+      - name: run aaa-gas-prices
+        if: ${{ !cancelled() }}
+        timeout-minutes: 40 # ~103 requests at robots.txt's 10-second crawl delay is ~17 minutes; room for retries
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python jobs/aaa-gas-prices.py
+
+      - name: run netflix-top-10
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10 # ~35 MB of downloads when Netflix has a new weekly release; a few seconds otherwise
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python jobs/netflix-top-10.py
