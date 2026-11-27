@@ -3,7 +3,7 @@ name: job_2
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */4 * * *' # At minute 0 past every 4th hour.”
+    - cron: '17 */4 * * *' # runs every 4 hours at :17 (00:17, 04:17, ... UTC), off the top of the hour
 
 jobs:
   build:

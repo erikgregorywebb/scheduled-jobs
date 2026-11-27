@@ -3,7 +3,7 @@ name: job_test_python
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 1 1 *' # https://stackoverflow.com/questions/8324306/a-cron-job-that-will-never-execute
+    - cron: '0 0 1 1 *' # runs once a year, at 00:00 UTC on Jan 1; meant to be run manually
 
 jobs:
   build:
