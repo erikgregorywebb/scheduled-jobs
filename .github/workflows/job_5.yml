@@ -25,6 +25,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: execute py scripts
+        timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -34,6 +35,7 @@ jobs:
 
       - name: execute citibike py script
         if: ${{ !cancelled() }} # run even if the weather script failed
+        timeout-minutes: 4
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
