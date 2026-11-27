@@ -28,6 +28,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `pinal-county-parcels.py`  | Python  | Daily  | Scrapes parcel details from the Pinal County, Arizona parcel search, dumps to S3. | Job 4 |
 | `go-fund-me.py`  | Python  | Daily  | Collects stats for the first three featured fundraisers on [GoFundMe](https://www.gofundme.com/discover)'s discover page, dumps to S3. | Job 1 |
 | `travel-advisories.r`  | R  | Daily  | Collects the US State Department's [travel advisories](https://travel.state.gov/_res/rss/TAsTWs.xml) from its official RSS feed, dumps to S3. | Job 3 |
+| `ny-lottery-winning-numbers.py`  | Python  | Daily  | Collects the latest draws, winning numbers, and NY prize/winner counts for each draw game from the [NY Lottery](https://nylottery.ny.gov/all-winning-numbers), dumps to S3. | Job 1 |
 
 ## Inactive
 
