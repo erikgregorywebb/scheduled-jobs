@@ -1,13 +1,11 @@
-import requests
 import pandas as pd
 from bs4 import BeautifulSoup
-from datetime import datetime
-import boto3
-from io import StringIO
 import json
-import os
 import re
 import time
+
+import common
+from common import RUN_DATETIME, RUN_LABEL, save_csv
 
 # GoFundMe's discover page no longer lists trending fundraisers in its HTML (they
 # load later via JavaScript), but it does link a few featured fundraisers, and each
@@ -18,14 +16,8 @@ HEADERS = {
     'Accept-Language': 'en-US,en;q=0.9',
 }
 
-# get current datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-
 def get(url):
-    response = requests.get(url, headers=HEADERS, timeout=30)
-    response.raise_for_status()
-    return response
+    return common.get(url, headers=HEADERS, timeout=30)
 
 def next_data(html):
     match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
@@ -87,23 +79,10 @@ for rank, slug in enumerate(slugs, start=1):
         'published_at': f.get('publishedAt'),
         'summary': f.get('storySlideSummary'),
         'description': html_to_text(description),
-        'datetime': current_datetime,
+        'datetime': RUN_DATETIME,
     })
 
 df = pd.DataFrame(rows)
 
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-# copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-file_path = 'go-fund-me/go-fund-me-' + current_datetime_label + '.csv'
-copy_to_s3(client=s3, df=df, bucket='egw-data-dumps', filepath=file_path)
+file_path = 'go-fund-me/go-fund-me-' + RUN_LABEL + '.csv'
+save_csv(df, file_path)

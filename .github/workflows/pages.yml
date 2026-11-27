@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - 'jobs/**'
+      - 'jobs.yml'
       - '.github/workflows/**'
       - 'README.md'
       - 'site/**'

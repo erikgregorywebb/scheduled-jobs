@@ -1,13 +1,10 @@
-import requests
 from datetime import datetime, timezone, timedelta
 from email.utils import parsedate_to_datetime
-import boto3
-from botocore.exceptions import ClientError
 from io import BytesIO
 import csv
 import pandas as pd
-import time
-import os
+
+from common import DRY_RUN, RUN_TIME, get, object_exists, save_bytes
 
 # Saves Netflix's official Top 10 downloads (https://www.netflix.com/tudum/top10,
 # formerly top10.netflix.com, which now redirects there) to S3, converted from TSV to CSV
@@ -27,7 +24,6 @@ import os
 
 BASE_URL = 'https://www.netflix.com/tudum/top10/data/'
 HEADERS = {'User-Agent': 'Mozilla/5.0 (compatible; scheduled-jobs data collector)'}
-BUCKET = 'egw-data-dumps'
 PREFIX = 'netflix-top-10/'
 CATEGORIES_GLOBAL = {'Films (English)', 'Films (Non-English)', 'TV (English)', 'TV (Non-English)'}
 COUNTRY = 'US'  # the one country kept from all-weeks-countries
@@ -52,22 +48,9 @@ FILES = {
 
 def open_download(url):
     # GET with stream=True so the headers can be read before downloading the body
-    # (the server answers HEAD with 403). Retries 5xx, 429 and connection errors.
-    for attempt in range(4):
-        try:
-            response = requests.get(url, headers=HEADERS, timeout=120, stream=True)
-            if response.status_code == 429 or response.status_code >= 500:
-                raise requests.HTTPError(f'{response.status_code} from {url}', response=response)
-            response.raise_for_status()  # any other 4xx fails right away
-            return response
-        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as e:
-            status = getattr(getattr(e, 'response', None), 'status_code', None)
-            if status is not None and 400 <= status < 500 and status != 429:
-                raise
-            if attempt == 3:
-                raise
-            print(f'Attempt {attempt + 1} for {url} failed ({e}), retrying')
-            time.sleep(15 * (attempt + 1))
+    # (the server answers HEAD with 403). Retries 5xx, 429 and connection errors
+    # after 15, 30 and 45s; any other 4xx fails right away.
+    return get(url, headers=HEADERS, timeout=120, stream=True, delays=(15, 30, 45))
 
 
 def validate(name, text):
@@ -93,7 +76,7 @@ def validate(name, text):
     latest_date = datetime.strptime(latest, '%Y-%m-%d').date()
     if latest_date.weekday() != 6:
         raise RuntimeError(f'{name}: latest week {latest} is not a Sunday')
-    if datetime.now(timezone.utc).date() - latest_date > timedelta(days=45):
+    if RUN_TIME.date() - latest_date > timedelta(days=45):
         raise RuntimeError(f'{name}: latest week {latest} is more than 45 days old')
     if name == 'all-weeks-global':
         latest_rows = [r for r in rows if r[i] == latest]
@@ -102,11 +85,6 @@ def validate(name, text):
     return len(rows), latest
 
 
-dry_run = bool(os.environ.get('DRY_RUN'))  # DRY_RUN=1 python jobs/netflix-top-10.py checks without S3
-if not dry_run:
-    s3 = boto3.client('s3', aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-                      aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'])
-
 for name in FILES:
     url = BASE_URL + name + '.tsv'
     response = open_download(url)
@@ -114,22 +92,18 @@ for name in FILES:
     if last_modified:
         source_time = parsedate_to_datetime(last_modified).astimezone(timezone.utc)
     else:
-        source_time = datetime.now(timezone.utc)
+        source_time = RUN_TIME
         print(f'{name}: no Last-Modified header; naming the file after the download time')
     # named after when Netflix last updated the file (UTC)
     saved_name = SAVED_AS.get(name, name)
     file_path = (PREFIX + saved_name + '/netflix-top-10-' + saved_name + '-'
                  + source_time.strftime('%Y-%m-%d-%H-%M-%S') + '.csv')
 
-    if not dry_run:
-        try:
-            s3.head_object(Bucket=BUCKET, Key=file_path)
-            response.close()
-            print(f'{file_path} already saved; Netflix has not published a new release since. Skipping.')
-            continue
-        except ClientError as e:
-            if e.response['Error']['Code'] not in ('404', 'NoSuchKey', 'NotFound'):
-                raise
+    # a dry run (DRY_RUN=1) skips this S3 check and writes the CSV under ./out/
+    if not DRY_RUN and object_exists(file_path):
+        response.close()
+        print(f'{file_path} already saved; Netflix has not published a new release since. Skipping.')
+        continue
 
     content = response.content
     expected_length = response.headers.get('Content-Length')
@@ -157,22 +131,13 @@ for name in FILES:
     body = df.to_csv(index=False).encode('utf-8')
     summary = f'{n_rows:,} rows' + (f', latest week {latest_week}' if latest_week else '')
 
-    if dry_run:
-        print(f'Dry run: would save {saved_name} ({summary}, {len(content):,} bytes, '
-              f'{len(body):,} as CSV) to {file_path}')
-        continue
-
-    s3.upload_fileobj(
-        BytesIO(body), BUCKET, file_path,
-        ExtraArgs={
-            'ContentType': 'text/csv',
-            'Metadata': {
-                'source-url': url,
-                'source-last-modified': last_modified or '',
-                'latest-week': latest_week or '',
-                'rows': str(n_rows),
-                'downloaded-at': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
-            },
+    save_bytes(
+        body, file_path, content_type='text/csv', label=f'{saved_name} ({summary})',
+        metadata={
+            'source-url': url,
+            'source-last-modified': last_modified or '',
+            'latest-week': latest_week or '',
+            'rows': str(n_rows),
+            'downloaded-at': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
         },
     )
-    print(f'Copy {saved_name} ({summary}) to S3 Bucket {BUCKET} at {file_path}, Done!')

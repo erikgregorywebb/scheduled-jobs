@@ -1,89 +1,89 @@
-# tutorial: https://www.rforseo.com/ressources/launch-an-r-script-using-github-actions
+# Generated from jobs.yml by tools/manifest.py. Edit jobs.yml and re-run it; don't edit this file.
+# Daily jobs (ported from R in 2026-11).
 
 name: job_3
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '29 8 * * *' # runs daily at 08:29 UTC (off the top of the hour, staggered after job_1)
+    - cron: '29 8 * * *' # daily at 08:29 UTC (off the top of the hour, staggered after job_1)
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45 # a run normally takes 4-6 minutes
-
-    # Load repo and install R
+    timeout-minutes: 45
     steps:
-    - uses: actions/checkout@v5
-    - uses: r-lib/actions/setup-r@v2
-      with:
-        use-public-rspm: true # install prebuilt Linux binaries from Posit's package manager
 
-    # Set up R packages (cached between runs)
-    - name: install packages
-      uses: r-lib/actions/setup-r-dependencies@v2
-      with:
-        packages: |
-          any::tidyverse
-          any::rvest
-          any::aws.s3
-          any::httr
-          any::jsonlite
-    
-    # Run each script in its own step, so one failing script doesn't skip the rest.
-    # The run is still marked failed if any step fails.
-    - name: run zillow-scrape
-      if: ${{ !cancelled() }}
-      timeout-minutes: 10
-      env:
+      - name: checkout repo content
+        uses: actions/checkout@v5
+
+      - name: setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: 'pip' # reuse downloaded packages between runs
+
+      - name: install python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Each script runs in its own step, so one failing or hung script doesn't skip
+      # the rest; the run is still marked failed if any step fails. Each step gets
+      # only the secrets its script needs.
+
+      - name: run zillow-scrape
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10 # a ~120 MB download when Zillow has published a new file
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: Rscript jobs/zillow-scrape.r
+        run: python jobs/zillow-scrape.py
 
-    - name: run tsa-passenger-volumes
-      if: ${{ !cancelled() }}
-      timeout-minutes: 10
-      env:
+      - name: run tsa-passenger-volumes
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: Rscript jobs/tsa-passenger-volumes.r
+        run: python jobs/tsa-passenger-volumes.py
 
-    - name: run mta-lift-status
-      if: ${{ !cancelled() }}
-      timeout-minutes: 10
-      env:
+      - name: run mta-lift-status
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: Rscript jobs/mta-lift-status.r
+        run: python jobs/mta-lift-status.py
 
-    - name: run nyrr-races
-      if: ${{ !cancelled() }}
-      timeout-minutes: 10
-      env:
+      - name: run nyrr-races
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: Rscript jobs/nyrr-races.r
+        run: python jobs/nyrr-races.py
 
-    - name: run ksl-rentals
-      if: ${{ !cancelled() }}
-      timeout-minutes: 10
-      env:
+      - name: run ksl-rentals
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: Rscript jobs/ksl-rentals.r
+        run: python jobs/ksl-rentals.py
 
-    - name: run hacker-news
-      if: ${{ !cancelled() }}
-      timeout-minutes: 10
-      env:
+      - name: run hacker-news
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10 # 10 pages, 15 seconds apart
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: Rscript jobs/hacker-news.r
+        run: python jobs/hacker-news.py
 
-    - name: run travel-advisories
-      if: ${{ !cancelled() }}
-      timeout-minutes: 10
-      env:
+      - name: run travel-advisories
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: Rscript jobs/travel-advisories.r
+        run: python jobs/travel-advisories.py

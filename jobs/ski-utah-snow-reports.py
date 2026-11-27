@@ -1,21 +1,10 @@
-import requests
 import pandas as pd
 from bs4 import BeautifulSoup
-from datetime import datetime
-import boto3
-from io import StringIO
 import json
-import os
 import re
 import time
 
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-# get current date and datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+from common import RUN_DATETIME, RUN_LABEL, get, save_csv
 
 # settings
 # Ski Utah's snow report lists every Utah resort; each links to a resort page,
@@ -27,7 +16,6 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept-Language': 'en-US,en;q=0.9',
 }
-BUCKET = 'egw-data-dumps'
 PREFIX = 'ski-utah-snow-reports/'
 # resorts in the Wasatch Range (the rest are in the Bear River Range, Tushars,
 # Wasatch Plateau, and near Cedar City); every resort is collected, this just flags them
@@ -38,20 +26,10 @@ WASATCH = {
 # Ski Utah lists 16 resorts as of the 2026-27 season; far fewer means a broken page
 MIN_RESORTS = 12
 
-def get(url, expect_json=False):
-    # retry transient failures, fail fast on other 4xx
-    for attempt in range(1, 4):
-        try:
-            r = requests.get(url, headers=HEADERS, timeout=60)
-            if r.status_code == 200:
-                return r.json() if expect_json else r.text
-            if r.status_code < 500 and r.status_code != 429:
-                raise SystemExit(f'{url} failed with status {r.status_code}: {r.text[:200]}')
-            print(f'{url} attempt {attempt}: status {r.status_code}')
-        except (requests.RequestException, ValueError) as e:
-            print(f'{url} attempt {attempt}: {e}')
-        time.sleep(10 * attempt)
-    raise SystemExit(f'{url} failed after 3 attempts')
+def fetch(url, expect_json=False):
+    # retries transient failures after 10 and 20s, fails fast on other 4xx
+    r = get(url, headers=HEADERS, timeout=60, delays=(10, 20))
+    return r.json() if expect_json else r.text
 
 def clean(text):
     return re.sub(r'\s+', ' ', text).strip() if text else None
@@ -64,7 +42,7 @@ def number(text):
     return float(m.group(0).replace(',', '')) if m else None
 
 # 1. the resort list, with the status shown on the overview (e.g. 'Opening Dec 4')
-overview = BeautifulSoup(get(OVERVIEW_URL), 'lxml')
+overview = BeautifulSoup(fetch(OVERVIEW_URL), 'lxml')
 resorts = {}
 for a in overview.find_all('a', href=re.compile(r'/members/[^/]+/snowreport$')):
     slug = a['href'].rstrip('/').split('/')[-2]
@@ -82,7 +60,7 @@ report_rows = []
 season_rows = []
 for slug, info in resorts.items():
     url = RESORT_URL.format(slug=slug)
-    soup = BeautifulSoup(get(url), 'lxml')
+    soup = BeautifulSoup(fetch(url), 'lxml')
     page = soup.find(id='page-info')
     if page is None or page.find('h1') is None:
         raise SystemExit(f'{url} has no snow report; got title {soup.title.string if soup.title else None!r}')
@@ -141,11 +119,11 @@ for slug, info in resorts.items():
         'peak_elev_ft': number(values.get('peak elev.')),
         'comments': comments if comments not in ('', '--') else None,
         'url': url,
-        'datetime': current_datetime,
+        'datetime': RUN_DATETIME,
     })
 
     # this season's daily base depth and year-to-date snowfall, as charted on the page
-    graph = get(GRAPH_URL.format(slug=slug), expect_json=True).get('graphdata', {})
+    graph = fetch(GRAPH_URL.format(slug=slug), expect_json=True).get('graphdata', {})
     season = graph.get('snowfall_season') or {}
     dates = (season.get('xAxis') or {}).get('categories') or []
     series = {s.get('name'): s.get('data') or [] for s in season.get('series') or []}
@@ -157,7 +135,7 @@ for slug, info in resorts.items():
             'date': d,
             'base_depth_in': base[i] if i < len(base) else None,
             'season_total_in': ytd[i] if i < len(ytd) else None,
-            'datetime': current_datetime,
+            'datetime': RUN_DATETIME,
         })
     time.sleep(1)  # be polite: ~32 requests per run
 
@@ -171,14 +149,5 @@ if report[['base_depth_in', 'runs_total']].isna().all().all():
 for r in report.itertuples():
     print(f'{r.short_name:<20} 24h {r.snow_24h_in}  base {r.base_depth_in}  season {r.season_total_in}  runs {r.runs_open}/{r.runs_total}  {r.overview_status or r.hours or ""}')
 
-# copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-copy_to_s3(client=s3, df=report, bucket=BUCKET, filepath=PREFIX + 'ski-utah-snow-reports-' + current_datetime_label + '.csv')
-copy_to_s3(client=s3, df=season, bucket=BUCKET, filepath=PREFIX + 'ski-utah-snow-season-' + current_datetime_label + '.csv')
+save_csv(report, PREFIX + 'ski-utah-snow-reports-' + RUN_LABEL + '.csv')
+save_csv(season, PREFIX + 'ski-utah-snow-season-' + RUN_LABEL + '.csv')

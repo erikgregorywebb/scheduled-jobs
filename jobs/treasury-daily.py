@@ -1,11 +1,11 @@
-import requests
 import pandas as pd
-from datetime import datetime, date
+from datetime import date
 import xml.etree.ElementTree as ET
-import boto3
-from io import StringIO
 import time
 import os
+
+from common import BUCKET, DRY_RUN, RUN_DATETIME, RUN_LABEL, RUN_TIME, s3, save_csv
+import common
 
 # Collects daily US Treasury data and dumps each dataset to S3 under treasury/:
 #   - yield curves from home.treasury.gov (par nominal, bill rates, long-term, real/TIPS)
@@ -17,7 +17,6 @@ import os
 # robots.txt on home.treasury.gov allows all paths (checked 2026-11-27).
 
 HEADERS = {'User-Agent': 'Mozilla/5.0 (compatible; scheduled-jobs data collector)'}
-BUCKET = 'egw-data-dumps'
 PREFIX = 'treasury/'
 BACKFILL_START_YEAR = 1990
 
@@ -34,21 +33,11 @@ FISCAL_URL = 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/'
 ATOM = '{http://www.w3.org/2005/Atom}'
 META = '{http://schemas.microsoft.com/ado/2007/08/dataservices/metadata}'
 
-now = datetime.now()
-current_datetime = now.strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = now.strftime('%Y-%m-%d-%H-%M-%S')
+now = RUN_TIME  # UTC
 
-def get(url, params, retries=3):
-    for attempt in range(retries):
-        try:
-            response = requests.get(url, params=params, headers=HEADERS, timeout=90)
-            response.raise_for_status()
-            return response
-        except requests.RequestException as e:
-            if attempt == retries - 1:
-                raise
-            print(f'  retrying {url} after error: {e}')
-            time.sleep(10 * (attempt + 1))
+def get(url, params):
+    # 3 attempts on connection errors, 5xx and 429; other 4xx fail fast
+    return common.get(url, params=params, headers=HEADERS, timeout=90, delays=(10, 20))
 
 def parse_yield_xml(content):
     rows = []
@@ -67,36 +56,20 @@ def recent_months():
     previous = date(now.year - 1, 12, 1) if now.month == 1 else date(now.year, now.month - 1, 1)
     return [previous.strftime('%Y%m'), first_of_month.strftime('%Y%m')]
 
-def s3_has_files(client, prefix):
-    return client.list_objects_v2(Bucket=BUCKET, Prefix=prefix, MaxKeys=1).get('KeyCount', 0) > 0
+def s3_has_files(prefix):
+    return s3().list_objects_v2(Bucket=BUCKET, Prefix=prefix, MaxKeys=1).get('KeyCount', 0) > 0
 
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-dry_run = bool(os.environ.get('DRY_RUN'))
-if dry_run:
+if DRY_RUN:
     # local check without touching S3: DRY_RUN=1 python jobs/treasury-daily.py
-    s3 = None
+    # (files go to ./out/; set BACKFILL=1 to try the full backfill)
     backfill = bool(os.environ.get('BACKFILL'))
 else:
-    AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-    AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-    s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-    backfill = not s3_has_files(s3, PREFIX + 'treasury-par-yield-curve-')
+    backfill = not s3_has_files(PREFIX + 'treasury-par-yield-curve-')
 
 def save(name, rows):
     df = pd.DataFrame(rows)
-    df['datetime'] = current_datetime
-    filename = f'treasury-{name}-{current_datetime_label}.csv'
-    if dry_run:
-        df.to_csv(filename, index=False)
-        print(f'Dry run: wrote {df.shape[0]} rows to {filename}')
-    else:
-        copy_to_s3(client=s3, df=df, bucket=BUCKET, filepath=PREFIX + filename)
+    df['datetime'] = RUN_DATETIME
+    save_csv(df, PREFIX + f'treasury-{name}-{RUN_LABEL}.csv')
 
 # yield curves
 def collect_yields():

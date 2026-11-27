@@ -1,0 +1,534 @@
+# The one list of scheduled jobs. tools/manifest.py generates the job_*.yml
+# workflows, job_test_python.yml and the README tables from it, and
+# jobs/freshness-check.py reads it to spot jobs that stop saving files.
+#
+# After editing:   python tools/manifest.py          (rewrites the generated files)
+# CI runs:         python tools/manifest.py --check  (fails if they're out of date)
+#
+# workflows: one GitHub Actions workflow each; jobs run one step after another.
+#   cron / cron_note       schedule (UTC) and why
+#   timeout / timeout_note whole-run limit in minutes
+#
+# jobs: one script each, in jobs/, in the order its workflow runs them.
+#   script       file in jobs/
+#   workflow     key under workflows
+#   frequency    Hourly | Every 4 Hours | Daily (sets the default freshness limit:
+#                4, 9 and 26 hours)
+#   timeout      step limit in minutes (timeout_note: why, if not routine)
+#   secrets      repository secrets the step needs besides the AWS keys
+#   outputs      S3 key stems the job writes, i.e. the key up to its timestamp.
+#                A stem may be a mapping with:
+#                  max_age_hours   override the frequency's freshness limit
+#                  min_size_ratio  flag a newest file smaller than this share of
+#                                  the median of the previous 7 (default 0.5;
+#                                  null turns the size check off)
+#                  note            why
+#   description  README text
+#
+# inactive: retired scripts kept in archive/, listed in the README.
+
+workflows:
+  job_1:
+    description: Daily jobs.
+    cron: '13 8 * * *'
+    cron_note: daily at 08:13 UTC (off the top of the hour, when GitHub queues are busiest)
+    timeout: 60
+    timeout_note: a full run normally takes ~2 minutes
+  job_2:
+    description: Every-4-hours jobs.
+    cron: '17 */4 * * *'
+    cron_note: every 4 hours at :17 (00:17, 04:17, ... UTC), off the top of the hour
+    timeout: 15
+    timeout_note: normally under a minute; a hang can't overlap the next run
+  job_3:
+    description: Daily jobs (ported from R in 2026-11).
+    cron: '29 8 * * *'
+    cron_note: daily at 08:29 UTC (off the top of the hour, staggered after job_1)
+    timeout: 45
+  job_4:
+    description: Daily Pinal County parcels scrape, the slowest job.
+    cron: '43 8 * * *'
+    cron_note: daily at 08:43 UTC (off the top of the hour, staggered after job_3)
+    timeout: 45
+    timeout_note: a run normally takes ~7 minutes
+  job_5:
+    description: Hourly jobs.
+    cron: '7 * * * *'
+    cron_note: hourly at :07 (off the top of the hour, when GitHub queues are busiest)
+    timeout: 10
+  job_6:
+    description: Daily weather backfill, after the previous New York day has ended.
+    cron: '23 6 * * *'
+    cron_note: daily at 06:23 UTC (1:23/2:23 am Eastern)
+    timeout: 10
+  job_7:
+    description: Daily Ski Utah snow reports. Utah resorts post their morning reports between about 5 and 7 am Mountain time, which none of the overnight workflows run after.
+    cron: '37 14 * * *'
+    cron_note: daily at 14:37 UTC (7:37 am MST / 8:37 am MDT)
+    timeout: 15
+  job_8:
+    description: Daily freshness check of every job's S3 output, after the overnight daily jobs finish.
+    cron: '47 11 * * *'
+    cron_note: daily at 11:47 UTC, ~3 hours after the last overnight daily workflow starts
+    timeout: 10
+
+jobs:
+  apple-app-store:
+    script: apple-app-store.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - apple-app-store/apple-app-store-
+    description: "Scrapes top 100 free Finance apps from the [Apple App Store](https://apps.apple.com/us/charts/iphone/finance-apps/6015?chart=top-free), dumps to S3."
+
+  apple-app-store-charts:
+    script: apple-app-store-charts.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - apple-app-store-charts/apple-app-store-charts-
+    description: "Collects the top 100 free, paid, and grossing iPhone Finance apps, with rank, from Apple's [iTunes RSS feed](https://itunes.apple.com/us/rss/topfreeapplications/limit=100/genre=6015/json), dumps to S3."
+
+  apple-podcast-charts:
+    script: apple-podcast-charts.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - apple-podcast-charts/apple-podcast-charts-shows-
+      - apple-podcast-charts/apple-podcast-charts-episodes-
+    description: "Collects the Apple Podcasts top 100 shows overall and in each of 18 categories from the [iTunes RSS feed](https://itunes.apple.com/us/rss/toppodcasts/limit=100/json), plus the top 100 episodes from the [v2 feed](https://rss.marketingtools.apple.com/api/v2/us/podcasts/top/100/podcast-episodes.json), dumps to S3."
+
+  freddie-mac-rates:
+    script: freddie-mac-rates.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - freddie-mac-rates/freddie-mac-rates-
+    description: "Scrapes mortgage rates published on the home page of [Freddie Mac](https://www.freddiemac.com/), dumps to S3."
+
+  newsapi-top-headlines:
+    script: newsapi-top-headlines.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    secrets: [NEWSAPI_KEY]
+    outputs:
+      - newsapi-top-headlines/newsapi-top-headlines-
+    description: "Collects the top headlines from the day from the [News API](https://newsapi.org/), dumps to S3."
+
+  spotify-podcast-charts:
+    script: spotify-podcast-charts.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - spotify-podcast-charts/spotify-podcast-charts-
+    description: "Collects the Spotify [podcast charts](https://podcastcharts.byspotify.com/), dumps to S3."
+
+  kworb-scrape:
+    script: kworb-scrape.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - kworb/us-daily-
+      - kworb/us-daily-totals-
+      - kworb/artists-
+      - kworb/listeners-
+    description: "Grabs [kworb](https://kworb.net/) artist, listener, and chart objects, dumps to S3."
+
+  last-fm-history:
+    script: last-fm-history.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    secrets: [LAST_FM_API_KEY]
+    outputs:
+      - last-fm/last-fm-history-
+    description: "Collects recent listening history from the [Last.fm API](https://www.last.fm/api), dumps to S3."
+
+  nyc-311-requests:
+    script: nyc-311-requests.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    secrets: [NYC_OPEN_DATA_APP_TOKEN]
+    outputs:
+      - nyc-311/nyc-311-
+    description: "Scrapes the 5,000 latest NYC 311 requests, dumps to S3."
+
+  nyc-restaurant-grades:
+    script: nyc-restaurant-grades.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    timeout_note: ~1 minute, a handful of paged Socrata queries
+    secrets: [NYC_OPEN_DATA_APP_TOKEN]
+    outputs:
+      - nyc-restaurant-grades/nyc-restaurant-grades-
+    description: "Snapshots every restaurant in NYC DOHMH's [restaurant inspection results](https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j) (~31,500) with its current and previous letter grade, score, and inspection dates, so grade changes show up between snapshots, dumps to S3."
+
+  s3-snapshots:
+    script: s3-snapshots.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - data-pipeline-logs/s3-changes/s3-changes-
+    description: "Saves snapshot of all files and directories within S3 bucket, dumps to S3."
+
+  mormon-reddit-submissions:
+    script: mormon-reddit-submissions.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    secrets: [PRAW_CLIENT_ID, PRAW_CLIENT_SECRET, PRAW_USER_AGENT, PRAW_USERNAME, PRAW_PASSWORD]
+    outputs:
+      - mormon-reddit/mormon-reddit-submissions-
+    description: "Grabs the latest 250 posts across the [\"mormon\"](https://www.reddit.com/r/mormon/) subreddits, dumps to S3."
+
+  wikipedia-daily-metrics:
+    script: wikipedia-daily-metrics.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - wikipedia/daily-metrics/wikipedia-daily-metrics-
+    description: "Collects the previous day's most-viewed Wikipedia articles from the [Wikimedia pageviews API](https://wikimedia.org/api/rest_v1/), dumps to S3."
+
+  go-fund-me:
+    script: go-fund-me.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - go-fund-me/go-fund-me-
+    description: "Collects stats for the first three featured fundraisers on [GoFundMe](https://www.gofundme.com/discover)'s discover page, dumps to S3."
+
+  ny-lottery-winning-numbers:
+    script: ny-lottery-winning-numbers.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - ny-lottery/ny-lottery-draws-
+      - ny-lottery/ny-lottery-prizes-
+    description: "Collects the latest draws, winning numbers, and NY prize/winner counts for each draw game from the [NY Lottery](https://nylottery.ny.gov/all-winning-numbers), dumps to S3."
+
+  treasury-daily:
+    script: treasury-daily.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - treasury/treasury-par-yield-curve-
+      - treasury/treasury-bill-rates-
+      - treasury/treasury-long-term-rates-
+      - treasury/treasury-real-yield-curve-
+      - treasury/treasury-auctions-recent-
+      - treasury/treasury-auctions-upcoming-
+      - stem: treasury/treasury-debt-to-penny-
+        max_age_hours: 168
+        note: Fiscal Data is optional in the script; its API has had multi-day outages
+      - stem: treasury/treasury-cash-balance-
+        max_age_hours: 168
+        note: as above
+    description: "Collects US Treasury yield curves, auction results and upcoming auctions, Debt to the Penny, and the daily cash balance from [home.treasury.gov](https://home.treasury.gov/resource-center/data-chart-center/interest-rates), [TreasuryDirect](https://www.treasurydirect.gov/), and [Fiscal Data](https://fiscaldata.treasury.gov/), dumps to S3."
+
+  tmdb-now-playing:
+    script: tmdb-now-playing.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    secrets: [TMDB_API_KEY]
+    outputs:
+      - tmdb-now-playing/tmdb-now-playing-
+    description: "Collects the movies currently in US theaters from [TMDB](https://developer.themoviedb.org/reference/movie-now-playing-list)'s now playing endpoint, dumps to S3."
+
+  lds-meetinghouses:
+    script: lds-meetinghouses.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 20
+    timeout_note: one ~60-second, ~16 MB request; room for retries
+    outputs:
+      - lds-meetinghouses/v3/meetinghouses-
+      - lds-meetinghouses/v3/associations-
+    description: "Collects every [LDS meetinghouse](https://maps.churchofjesuschrist.org/) worldwide (~19,800) with address, coordinates and hours, plus the wards, stakes and other units that meet in each, dumps to S3."
+
+  lds-temples:
+    script: lds-temples.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 20
+    timeout_note: ~385 details pages, 4 at a time; room for retries
+    outputs:
+      - lds-temples/temples-
+      - lds-temples/milestones-
+      - lds-temples/closures-
+    description: "Collects every [LDS temple](https://www.churchofjesuschrist.org/temples/list) (~385) with its status (operating, renovation, opening soon, construction, announced), plus address, coordinates and hours from the Meetinghouse Locator, milestone dates (announced, groundbreaking, dedicated) from each details page, and upcoming closures, dumps to S3."
+
+  faa-aircraft-registry:
+    script: faa-aircraft-registry.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 15
+    timeout_note: one ~73 MB download and upload; room for retries
+    outputs:
+      - stem: faa-aircraft-registry/faa-aircraft-registry-
+        max_age_hours: 240
+        min_size_ratio: 0.8
+        note: only saved when the FAA publishes a new release
+    description: "Saves the FAA's full [aircraft registry database](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download) zip (every US-registered aircraft, owner, and deregistration) whenever the FAA publishes a new release, dumps to S3."
+
+  cnn-fear-greed:
+    script: cnn-fear-greed.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - cnn-fear-greed/cnn-fear-greed-summary-
+      - cnn-fear-greed/cnn-fear-greed-history-
+    description: "Snapshots the [CNN Fear & Greed Index](https://www.cnn.com/markets/fear-and-greed) from the JSON endpoint behind the page: the headline score and rating (with previous close, 1-week, 1-month and 1-year comparisons), its seven component indicators, and about a year of daily history for each, dumps to S3."
+
+  lds-newsroom-rss:
+    script: lds-newsroom-rss.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - lds-newsroom/lds-newsroom-rss-
+    description: "Collects the 25 latest press releases and announcements from the [Church Newsroom](https://newsroom.churchofjesuschrist.org/)'s official [RSS feed](https://newsroom.churchofjesuschrist.org/rss), with title, link, publish date, dateline, summary and image, dumps to S3."
+
+
+  aaa-gas-prices:
+    script: aaa-gas-prices.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 40
+    timeout_note: ~103 requests at robots.txt's 10-second crawl delay is ~17 minutes; room for retries
+    outputs:
+      - aaa-gas-prices/averages/aaa-gas-prices-averages-
+      - aaa-gas-prices/counties/aaa-gas-prices-counties-
+      - aaa-gas-prices/records/aaa-gas-prices-records-
+    description: "Collects [AAA](https://gasprices.aaa.com/)'s national, state (50 + DC), metro-area, and county gas price averages by grade (current, yesterday, week, month and year ago), plus record highs, dumps to S3 under `aaa-gas-prices/`."
+
+  netflix-top-10:
+    script: netflix-top-10.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    timeout_note: ~35 MB of downloads when Netflix has a new weekly release; a few seconds otherwise
+    outputs:
+      - stem: netflix-top-10/all-weeks-global/netflix-top-10-all-weeks-global-
+        max_age_hours: 216
+        note: only saved when Netflix publishes a new week, on Tuesdays
+      - stem: netflix-top-10/united-states/netflix-top-10-united-states-
+        max_age_hours: 216
+        note: only saved when Netflix publishes a new week, on Tuesdays
+      - stem: netflix-top-10/most-popular/netflix-top-10-most-popular-
+        max_age_hours: 1080
+        note: only saved when the all-time list changes, which can be weeks apart
+    description: "Saves Netflix's official [Top 10](https://www.netflix.com/tudum/top10) TSV downloads (formerly top10.netflix.com): global weekly top 10 films and TV with hours viewed and views, the weekly US top 10 films and TV (filtered from Netflix's all-countries file), and the all-time most popular list, all back to July 2021. Netflix publishes weekly on Tuesdays, so each file is converted to CSV and saved only when it changes, dumps to S3 under `netflix-top-10/`."
+
+
+  billboard-hot-100:
+    script: billboard-hot-100.py
+    workflow: job_1
+    frequency: Daily
+    timeout: 10
+    timeout_note: one ~3 MB page; saves only when Billboard publishes a new weekly chart
+    outputs:
+      - stem: billboard-hot-100/billboard-hot-100-
+        max_age_hours: 216
+        note: one file per weekly chart (named by chart date), saved the Tuesday Billboard publishes it
+    description: "Parses the [Billboard Hot 100](https://www.billboard.com/charts/hot-100/) from its chart page: rank, title, artist, last week's rank, peak, weeks at No. 1, weeks on chart, and a new / re-entry flag for all 100 songs. Billboard publishes weekly on Tuesdays (dated the following Saturday), so each chart is saved once, as CSV, dumps to S3 under `billboard-hot-100/`."
+
+  mormon-reddit-comments:
+    script: mormon-reddit-comments.py
+    workflow: job_2
+    frequency: Every 4 Hours
+    timeout: 10
+    secrets: [PRAW_CLIENT_ID, PRAW_CLIENT_SECRET, PRAW_USER_AGENT, PRAW_USERNAME, PRAW_PASSWORD]
+    outputs:
+      - mormon-reddit/mormon-reddit-comments-
+    description: "Grabs the latest 250 comments per [\"mormon\"](https://www.reddit.com/r/mormon/) subreddit, dumps to S3."
+
+  zillow-scrape:
+    script: zillow-scrape.py
+    workflow: job_3
+    frequency: Daily
+    timeout: 10
+    timeout_note: a ~120 MB download when Zillow has published a new file
+    outputs:
+      - stem: zillow/zhvi-all-homes-zip-code-
+        max_age_hours: 1200
+        min_size_ratio: 0.8
+        note: only saved when Zillow publishes a new file, about monthly
+    description: "Scrapes [Zillow](https://www.zillow.com/research/data/)'s basic, zipcode-level ZHVF file, dumps to S3."
+
+  tsa-passenger-volumes:
+    script: tsa-passenger-volumes.py
+    workflow: job_3
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - tsa/tsa-passenger-volumes-
+    description: "Scrapes daily passenger volume counts reported by the TSA, dumps to S3."
+
+  mta-lift-status:
+    script: mta-lift-status.py
+    workflow: job_3
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - mta/metro-north-lifts/mta-mnr-lifts-
+    description: "Scrapes elevator and escalator status logs from NY's Metro North Railroad, dumps to S3 under `mta/metro-north-lifts/`."
+
+  nyrr-races:
+    script: nyrr-races.py
+    workflow: job_3
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - nyrr/nyrr-2024-races-
+    description: "Scrapes a list of upcoming races hosted by NYRR, dumps to S3."
+
+  ksl-rentals:
+    script: ksl-rentals.py
+    workflow: job_3
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - ksl/ksl-rentals-
+    description: "Scrapes [KSL's](https://homes.ksl.com/rent/search) rental unit listings in Utah County, dumps to S3."
+
+  hacker-news:
+    script: hacker-news.py
+    workflow: job_3
+    frequency: Daily
+    timeout: 10
+    timeout_note: 10 pages, 15 seconds apart
+    outputs:
+      - hacker-news/hacker-news-
+    description: "Scrapes the first ten pages of YC's [Hacker News](https://news.ycombinator.com/news?p=1), dumps to S3."
+
+  travel-advisories:
+    script: travel-advisories.py
+    workflow: job_3
+    frequency: Daily
+    timeout: 10
+    outputs:
+      - travel-advisories/travel-advisories-
+    description: "Collects the US State Department's [travel advisories](https://travel.state.gov/_res/rss/TAsTWs.xml) from its official RSS feed, dumps to S3."
+
+  pinal-county-parcels:
+    script: pinal-county-parcels.py
+    workflow: job_4
+    frequency: Daily
+    timeout: 30
+    timeout_note: normally ~7 minutes
+    outputs:
+      - pinal-county-parcels/gila-buttes-parcels-
+    description: "Scrapes parcel details from the Pinal County, Arizona parcel search, dumps to S3."
+
+  open-meteo-weather-hourly:
+    script: open-meteo-weather-hourly.py
+    workflow: job_5
+    frequency: Hourly
+    timeout: 4
+    outputs:
+      - weather/hourly/open-meteo-weather-hourly-
+    description: "Collects current weather conditions for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3."
+
+  citibike-station-status:
+    script: citibike-station-status.py
+    workflow: job_5
+    frequency: Hourly
+    timeout: 4
+    outputs:
+      - citibike/station-status/citibike-station-status-
+    description: "Snapshots bikes and docks available at every Citi Bike station from the public [GBFS feed](https://gbfs.citibikenyc.com/gbfs/2.3/gbfs.json), with station name, location, and capacity, dumps to S3."
+
+  faa-airport-status:
+    script: faa-airport-status.py
+    workflow: job_5
+    frequency: Hourly
+    timeout: 4
+    outputs:
+      - stem: faa-airport-status/faa-airport-status-
+        min_size_ratio: null
+        note: size swings with how many delays there are
+    description: "Snapshots the FAA's live [airport status](https://nasstatus.faa.gov/) feed: ground stops, ground delay programs, arrival/departure delays, airspace flow programs, and closures, dumps to S3."
+
+  metro-north-trip-updates:
+    script: metro-north-trip-updates.py
+    workflow: job_5
+    frequency: Hourly
+    timeout: 4
+    outputs:
+      - mta/metro-north-trip-updates/metro-north-trip-updates-
+    description: "Snapshots every Metro-North train in MTA's [GTFS-realtime feed](https://api.mta.info/#/subwayRealTimeFeeds) with its predicted arrival, track, and status at each upcoming stop, joined to the [static schedule](https://rrgtfsfeeds.s3.amazonaws.com/gtfsmnr.zip) for scheduled times and a computed delay, dumps to S3."
+
+  metro-north-service-alerts:
+    script: metro-north-service-alerts.py
+    workflow: job_5
+    frequency: Hourly
+    timeout: 4
+    outputs:
+      - stem: mta/metro-north-service-alerts/metro-north-service-alerts-
+        min_size_ratio: null
+        note: size swings with how many alerts are active
+    description: "Snapshots Metro-North's [GTFS-realtime service alerts](https://api.mta.info/#/serviceAlerts): live delay and cancellation notices for individual trains (with train number and cause), planned work, schedule changes, and station notices, dumps to S3."
+
+  polymarket-markets:
+    script: polymarket-markets.py
+    workflow: job_5
+    frequency: Hourly
+    timeout: 4
+    timeout_note: ~60 requests, normally ~30 seconds
+    outputs:
+      - polymarket/markets-
+    description: "Snapshots prices, bid/ask, volume and liquidity for the ~4,000 most active open markets on [Polymarket](https://polymarket.com/) (the top 2,000 each by 24-hour volume, total volume and liquidity) from its public [Gamma API](https://docs.polymarket.com/), dumps to S3."
+
+  open-meteo-weather-daily:
+    script: open-meteo-weather-daily.py
+    workflow: job_6
+    frequency: Daily
+    timeout: 5
+    outputs:
+      - weather/daily/open-meteo-weather-daily-
+    description: "Backfills the previous day's 24 hourly weather readings for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3."
+
+
+  ski-utah-snow-reports:
+    script: ski-utah-snow-reports.py
+    workflow: job_7
+    frequency: Daily
+    timeout: 10
+    timeout_note: a run normally takes about a minute
+    outputs:
+      - ski-utah-snow-reports/ski-utah-snow-reports-
+      - ski-utah-snow-reports/ski-utah-snow-season-
+    description: "Collects the morning snow report for every Utah resort on [Ski Utah](https://www.skiutah.com/snowreport), with the 11 Wasatch Range resorts flagged: overnight, 24-hour, 48-hour and 7-day snowfall, base depth, season total, runs, lifts and parks open, hours or opening date, and the resort's comments, plus each resort's daily base depth and season snowfall so far this season, dumps to S3."
+
+  freshness-check:
+    script: freshness-check.py
+    workflow: job_8
+    frequency: Daily
+    timeout: 5
+    outputs:
+      - data-pipeline-logs/freshness/freshness-
+    description: "Checks every job's S3 output listed in jobs.yml: fails (so GitHub emails) when a job's newest file is older than its schedule allows, or much smaller than usual, and saves the report, dumps to S3."
+
+inactive:
+  - script: archive/spotify-playlist-history.py
+    type: Python
+    description: "Scrapes track list for Spotify's [Rap Cavier](https://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd?si=8f0f87a0d4e04e0f) playlist, dumps to S3."
+  - script: archive/gila-buttes-parcels.r
+    type: R
+    description: "Scrapes details for ~280 parcels in the Gila Buttes subdivision in Casa Grande, Arizona, dumps to S3."

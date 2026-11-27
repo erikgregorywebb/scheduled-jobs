@@ -1,11 +1,12 @@
-# tutorial: https://canovasjm.netlify.app/2020/11/29/github-actions-run-a-python-script-on-schedule-and-commit-changes/
+# Generated from jobs.yml by tools/manifest.py. Edit jobs.yml and re-run it; don't edit this file.
+# Daily Pinal County parcels scrape, the slowest job.
 
 name: job_4
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '43 8 * * *' # runs daily at 08:43 UTC (off the top of the hour, staggered after job_3)
+    - cron: '43 8 * * *' # daily at 08:43 UTC (off the top of the hour, staggered after job_3)
 
 jobs:
   build:
@@ -14,23 +15,27 @@ jobs:
     steps:
 
       - name: checkout repo content
-        uses: actions/checkout@v5 # checkout the repository content to github runner
+        uses: actions/checkout@v5
 
       - name: setup python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.10' # install the python version needed
-          
+          python-version: '3.10'
+          cache: 'pip' # reuse downloaded packages between runs
+
       - name: install python packages
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          
-      - name: execute py scripts
-        timeout-minutes: 30
+
+      # Each script runs in its own step, so one failing or hung script doesn't skip
+      # the rest; the run is still marked failed if any step fails. Each step gets
+      # only the secrets its script needs.
+
+      - name: run pinal-county-parcels
+        if: ${{ !cancelled() }}
+        timeout-minutes: 30 # normally ~7 minutes
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          
-        run: | 
-          python jobs/pinal-county-parcels.py
+        run: python jobs/pinal-county-parcels.py

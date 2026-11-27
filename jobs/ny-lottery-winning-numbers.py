@@ -1,11 +1,8 @@
-import requests
 import pandas as pd
-from datetime import datetime
-import boto3
-from io import StringIO
 import json
 import time
-import os
+
+from common import RUN_DATETIME, RUN_LABEL, get_json, save_csv
 
 # The page https://nylottery.ny.gov/all-winning-numbers loads its data from this JSON API.
 # robots.txt (checked 2026-11-27) allows all paths for all user agents.
@@ -30,14 +27,9 @@ GAMES = {
 # games and ~12 days for the twice-daily ones, so a daily run always overlaps.
 PAGES = 1
 
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-
 def get_rows(nid, page):
     params = {'_format': 'json', 'nid': nid, 'page': page}
-    response = requests.get(API_URL, params=params, headers=HEADERS, timeout=30)
-    response.raise_for_status()
-    return response.json().get('rows', [])
+    return get_json(API_URL, params=params, headers=HEADERS, timeout=30, name=f'nid {nid} page {page}').get('rows', [])
 
 def join(values):
     return '-'.join(values) if isinstance(values, list) else values
@@ -67,7 +59,7 @@ for game_key, nid in GAMES.items():
                 'dp_bonus_number': row.get('dp_bonus_number'),
                 'next_draw_date': row.get('next_draw_date'),
                 'next_jackpot': row.get('next_jackpot'),
-                'datetime': current_datetime,
+                'datetime': RUN_DATETIME,
             })
 
             # every list of prize-tier dicts is a prize group, e.g. local_winners,
@@ -100,33 +92,12 @@ for game_key, nid in GAMES.items():
                         'mm_national_winners': tier.get('mm_national_winners'),
                         'winner_states': json.dumps(tier.get('state') or []),
                         'winner_locations': json.dumps(tier.get('location_data') or []),
-                        'datetime': current_datetime,
+                        'datetime': RUN_DATETIME,
                     })
         time.sleep(1)  # be polite between requests
 
 df_draws = pd.DataFrame(draws)
 df_prizes = pd.DataFrame(prizes)
 
-if os.environ.get('DRY_RUN'):
-    # local check without touching S3: DRY_RUN=1 python jobs/ny-lottery-winning-numbers.py
-    df_draws.to_csv('ny-lottery-draws.csv', index=False)
-    df_prizes.to_csv('ny-lottery-prizes.csv', index=False)
-    print(f'Dry run: wrote {df_draws.shape[0]} draws and {df_prizes.shape[0]} prize rows locally')
-else:
-    # get environmental variables
-    AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-    AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-    # copy to s3
-    s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-    def copy_to_s3(client, df, bucket, filepath):
-        csv_buf = StringIO()
-        df.to_csv(csv_buf, header=True, index=False)
-        csv_buf.seek(0)
-        client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-        print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-    copy_to_s3(client=s3, df=df_draws, bucket='egw-data-dumps',
-               filepath='ny-lottery/ny-lottery-draws-' + current_datetime_label + '.csv')
-    copy_to_s3(client=s3, df=df_prizes, bucket='egw-data-dumps',
-               filepath='ny-lottery/ny-lottery-prizes-' + current_datetime_label + '.csv')
+save_csv(df_draws, 'ny-lottery/ny-lottery-draws-' + RUN_LABEL + '.csv')
+save_csv(df_prizes, 'ny-lottery/ny-lottery-prizes-' + RUN_LABEL + '.csv')

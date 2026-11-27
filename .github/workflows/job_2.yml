@@ -1,30 +1,39 @@
+# Generated from jobs.yml by tools/manifest.py. Edit jobs.yml and re-run it; don't edit this file.
+# Every-4-hours jobs.
+
 name: job_2
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 */4 * * *' # runs every 4 hours at :17 (00:17, 04:17, ... UTC), off the top of the hour
+    - cron: '17 */4 * * *' # every 4 hours at :17 (00:17, 04:17, ... UTC), off the top of the hour
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # a run normally takes under a minute; runs every 4 hours, so a hang can't overlap the next
+    timeout-minutes: 15 # normally under a minute; a hang can't overlap the next run
     steps:
 
       - name: checkout repo content
-        uses: actions/checkout@v5 # checkout the repository content to github runner
+        uses: actions/checkout@v5
 
       - name: setup python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.10' # install the python version needed
-          
+          python-version: '3.10'
+          cache: 'pip' # reuse downloaded packages between runs
+
       - name: install python packages
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          
-      - name: execute py scripts
+
+      # Each script runs in its own step, so one failing or hung script doesn't skip
+      # the rest; the run is still marked failed if any step fails. Each step gets
+      # only the secrets its script needs.
+
+      - name: run mormon-reddit-comments
+        if: ${{ !cancelled() }}
         timeout-minutes: 10
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -34,5 +43,4 @@ jobs:
           PRAW_USER_AGENT: ${{ secrets.PRAW_USER_AGENT }}
           PRAW_USERNAME: ${{ secrets.PRAW_USERNAME }}
           PRAW_PASSWORD: ${{ secrets.PRAW_PASSWORD }}
-        run: | 
-          python jobs/mormon-reddit-comments.py
+        run: python jobs/mormon-reddit-comments.py
