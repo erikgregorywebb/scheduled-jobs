@@ -38,4 +38,4 @@ jobs:
           NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
           
         run: |
-          python jobs/wikipedia-daily-metrics.py
+          python .github/diagnostics/hn-probe.py
