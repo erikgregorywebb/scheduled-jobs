@@ -39,6 +39,7 @@ jobs:
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           LAST_FM_API_KEY: ${{ secrets.LAST_FM_API_KEY }}
           NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           
         run: | 
           python jobs/apple-app-store.py
@@ -53,3 +54,4 @@ jobs:
           python jobs/wikipedia-daily-metrics.py
           python jobs/go-fund-me.py
           python jobs/ny-lottery-winning-numbers.py
+          python jobs/tmdb-now-playing.py
