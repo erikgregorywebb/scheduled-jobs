@@ -133,6 +133,11 @@ jobs:
         timeout-minutes: 20 # ~385 details pages, 4 at a time; room for retries
         run: python jobs/lds-temples.py
 
+      - name: run polymarket-markets
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: python jobs/polymarket-markets.py
+
       - name: run faa-aircraft-registry
         if: ${{ !cancelled() }}
         timeout-minutes: 15 # one ~73 MB download and upload; room for retries
