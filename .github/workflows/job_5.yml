@@ -81,3 +81,13 @@ jobs:
 
         run: |
           python jobs/polymarket-markets.py
+
+      - name: execute nyc subway train positions py script
+        if: ${{ !cancelled() }} # run even if an earlier script failed
+        timeout-minutes: 4 # 8 small feeds plus a ~6 MB static zip, normally ~15 seconds
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+        run: |
+          python jobs/nyc-subway-train-positions.py
