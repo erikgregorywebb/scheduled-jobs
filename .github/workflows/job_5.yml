@@ -79,3 +79,11 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python jobs/polymarket-markets.py
+
+      - name: run nyc-subway-train-positions
+        if: ${{ !cancelled() }}
+        timeout-minutes: 4 # 8 small feeds plus a ~6 MB static zip, normally ~15 seconds
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python jobs/nyc-subway-train-positions.py

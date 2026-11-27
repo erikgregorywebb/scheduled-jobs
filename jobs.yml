@@ -495,6 +495,18 @@ jobs:
       - polymarket/markets-
     description: "Snapshots prices, bid/ask, volume and liquidity for the ~4,000 most active open markets on [Polymarket](https://polymarket.com/) (the top 2,000 each by 24-hour volume, total volume and liquidity) from its public [Gamma API](https://docs.polymarket.com/), dumps to S3."
 
+  nyc-subway-train-positions:
+    script: nyc-subway-train-positions.py
+    workflow: job_5
+    frequency: Hourly
+    timeout: 4
+    timeout_note: 8 small feeds plus a ~6 MB static zip, normally ~15 seconds
+    outputs:
+      - stem: mta/nyc-subway-train-positions/nyc-subway-train-positions-
+        min_size_ratio: 0.25
+        note: trains running swing from ~100 overnight to ~520 at rush hour
+    description: "Snapshots where every NYC subway train is from MTA's 8 [GTFS-realtime subway feeds](https://api.mta.info/#/subwayRealTimeFeeds): the station it's at or approaching and its status, the next stop with predicted arrival, the terminal, track, and an `in_service` flag that separates trains out on the line from scheduled trips that haven't started and finished ones, with station names and coordinates from the [static schedule](https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip), dumps to S3."
+
   open-meteo-weather-daily:
     script: open-meteo-weather-daily.py
     workflow: job_6
