@@ -1,24 +1,10 @@
-import os
 import time
 import datetime as dt
-from datetime import datetime
-from io import StringIO
 
-import boto3
 import pandas as pd
 import requests
 
-# -----------------------------------------------------------------------------
-# Runtime timestamps
-# -----------------------------------------------------------------------------
-current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-current_datetime_label = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-
-# -----------------------------------------------------------------------------
-# Environment variables (AWS)
-# -----------------------------------------------------------------------------
-AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
-AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
+from common import RUN_LABEL, RUN_TIME, get, save_csv
 
 # -----------------------------------------------------------------------------
 # Topviews settings
@@ -27,7 +13,7 @@ PROJECT = "en.wikipedia.org"
 ACCESS = "all-access"  # matches Topviews "platform"
 TOP_N = 1000
 DAYS_BACK = 7
-END_DATE = dt.date.today() - dt.timedelta(days=1)  # yesterday (inclusive)
+END_DATE = RUN_TIME.date() - dt.timedelta(days=1)  # yesterday in UTC (inclusive)
 
 session = requests.Session()
 session.headers.update({"User-Agent": "topviews-basic/1.0 (personal use)"})
@@ -43,11 +29,13 @@ for i in range(DAYS_BACK):
     )
     print(f"Fetching: {url}")
 
-    resp = session.get(url, timeout=30)
-    if resp.status_code == 404:
-        print(f"  Data not available yet for {day}, skipping.")
-        continue
-    resp.raise_for_status()
+    try:
+        resp = get(url, session=session, timeout=30, name=f"pageviews {day}")
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            print(f"  Data not available yet for {day}, skipping.")
+            continue
+        raise
     data = resp.json()
 
     articles = data["items"][0]["articles"][:TOP_N]
@@ -69,22 +57,5 @@ if not rows:
 df = pd.DataFrame(rows, columns=["date", "rank", "page", "pageviews"])
 df = df.sort_values(["date", "rank"], ascending=[False, True]).reset_index(drop=True)
 
-# -----------------------------------------------------------------------------
-# Copy to S3
-# -----------------------------------------------------------------------------
-s3 = boto3.client(
-    "s3",
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-)
-
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-
-    client.put_object(Bucket=bucket, Key=filepath, Body=csv_buf.getvalue())
-    print(f"Copied {df.shape[0]:,} rows to s3://{bucket}/{filepath}")
-
-file_path = 'wikipedia/daily-metrics/wikipedia-daily-metrics-' + current_datetime_label + '.csv'
-copy_to_s3(client=s3, df=df, bucket="egw-data-dumps", filepath=file_path)
+file_path = 'wikipedia/daily-metrics/wikipedia-daily-metrics-' + RUN_LABEL + '.csv'
+save_csv(df, file_path)

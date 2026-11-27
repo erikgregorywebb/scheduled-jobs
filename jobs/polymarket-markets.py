@@ -1,11 +1,8 @@
-import requests
 import pandas as pd
-from datetime import datetime
-import boto3
-from io import StringIO
 import json
-import os
 import time
+
+from common import RUN_DATETIME, RUN_LABEL, get_json, save_csv
 
 # Snapshots prices for the most active open markets on Polymarket from its public Gamma API
 # (https://docs.polymarket.com/), so each market's odds can be followed day to day. No key is needed.
@@ -19,37 +16,18 @@ import time
 # Output (one file per run):
 #   polymarket/markets-<datetime>.csv  one row per market, with each outcome's price
 
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-# get current date and datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-
 url = 'https://gamma-api.polymarket.com/markets'
 TOP_N = 2000
 PAGE_SIZE = 100  # the API's maximum
 RANKINGS = {'volume24hr': 'rank_volume_24hr', 'volumeNum': 'rank_volume', 'liquidityNum': 'rank_liquidity'}
 
-def get_page(order, offset, attempts=3):
+def get_page(order, offset):
+    # retries connection errors, 5xx and 429 (3 attempts); any other 4xx fails fast
     params = {'active': 'true', 'closed': 'false', 'limit': PAGE_SIZE, 'offset': offset, 'order': order, 'ascending': 'false'}
-    for attempt in range(1, attempts + 1):
-        try:
-            r = requests.get(url, params=params, timeout=60)
-            if r.status_code == 200:
-                page = r.json()
-                if not isinstance(page, list):
-                    raise SystemExit(f'{order} offset {offset}: expected a list of markets, got {str(page)[:200]}')
-                return page
-            if 400 <= r.status_code < 500 and r.status_code != 429:
-                # a bad request won't fix itself on retry
-                raise SystemExit(f'{order} offset {offset}: status {r.status_code}: {r.text[:200]}')
-            print(f'{order} offset {offset} attempt {attempt}: status {r.status_code}')
-        except (requests.RequestException, ValueError) as e:
-            print(f'{order} offset {offset} attempt {attempt}: {e}')
-        time.sleep(10 * attempt)
-    raise SystemExit(f'Polymarket request for {order} offset {offset} failed after {attempts} attempts')
+    page = get_json(url, params=params, timeout=60, delays=(10, 20), name=f'{order} offset {offset}')
+    if not isinstance(page, list):
+        raise SystemExit(f'{order} offset {offset}: expected a list of markets, got {str(page)[:200]}')
+    return page
 
 def parse_list(s):
     # outcomes, prices and token ids come back as JSON-encoded strings
@@ -125,7 +103,7 @@ for market_id, m in markets.items():
         'created_at': m.get('createdAt'),
         'updated_at': m.get('updatedAt'),
         'clob_token_ids': json.dumps(parse_list(m.get('clobTokenIds'))),
-        'scraped_at': current_datetime,
+        'scraped_at': RUN_DATETIME,
     }
     for rank_col in RANKINGS.values():
         row[rank_col] = ranks[market_id].get(rank_col)
@@ -135,13 +113,4 @@ df = pd.DataFrame(rows).astype({c: 'Int64' for c in RANKINGS.values()})
 df = df.sort_values('volume_24hr', ascending=False)
 print(f'Parsed {len(df)} markets across {df["event_id"].nunique()} events')
 
-# copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-copy_to_s3(client=s3, df=df, bucket='egw-data-dumps', filepath='polymarket/markets-' + current_datetime_label + '.csv')
+save_csv(df, 'polymarket/markets-' + RUN_LABEL + '.csv')

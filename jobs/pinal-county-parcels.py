@@ -1,9 +1,4 @@
-import requests
 import pandas as pd
-from datetime import datetime
-import boto3
-from io import StringIO
-import os
 
 import re
 import time
@@ -11,13 +6,7 @@ import random
 import requests
 from bs4 import BeautifulSoup
 
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-# get current date and datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+from common import RUN_LABEL, save_csv
 
 WANTED = [
     "Parcel NUMBER",
@@ -647,14 +636,5 @@ parcel_ids = [
 
 wide_df, errors_df = fetch_many(parcel_ids)
 
-# copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-file_path = 'pinal-county-parcels/gila-buttes-parcels-' + current_datetime_label + '.csv'
-copy_to_s3(client=s3, df=wide_df, bucket='egw-data-dumps', filepath=file_path)
+file_path = 'pinal-county-parcels/gila-buttes-parcels-' + RUN_LABEL + '.csv'
+save_csv(wide_df, file_path)
