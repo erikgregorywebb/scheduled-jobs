@@ -1,0 +1,32 @@
+name: checks
+
+# Runs on pull requests and pushes to main: jobs.yml is valid, the generated
+# workflows and README tables are up to date, and every script compiles.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: install python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: jobs.yml and generated files
+        run: python tools/manifest.py --check
+
+      - name: scripts compile
+        run: python -m compileall -q jobs tools

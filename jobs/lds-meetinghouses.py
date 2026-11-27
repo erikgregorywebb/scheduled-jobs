@@ -1,10 +1,6 @@
-import requests
 import pandas as pd
-from datetime import datetime
-import boto3
-from io import StringIO
-import os
-import time
+
+from common import RUN_DATETIME, RUN_LABEL, get_json, save_csv
 
 # Collects every meetinghouse and the units (wards, stakes, FamilySearch centers, ...) that meet there
 # from the Meetinghouse Locator at https://maps.churchofjesuschrist.org/.
@@ -18,14 +14,6 @@ import time
 # Output (one pair of files per run; the v3/ prefix keeps this layout apart from the older R scripts' files):
 #   lds-meetinghouses/v3/meetinghouses-<datetime>.csv  one row per meetinghouse
 #   lds-meetinghouses/v3/associations-<datetime>.csv   one row per unit meeting at a meetinghouse
-
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-# get current date and datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
 # well above the current total; the script stops if the API reports more than this
 MAX_LOCATIONS = 50000
@@ -49,17 +37,8 @@ headers = {
     ),
 }
 
-def get_locations(attempts=3):
-    for attempt in range(1, attempts + 1):
-        try:
-            r = requests.get(url, params=params, headers=headers, timeout=300)
-            if r.status_code == 200:
-                return r.json()
-            print(f'Attempt {attempt}: status {r.status_code}')
-        except (requests.RequestException, ValueError) as e:
-            print(f'Attempt {attempt}: {e}')
-        time.sleep(30 * attempt)
-    raise SystemExit('Meetinghouse request failed after 3 attempts')
+def get_locations():
+    return get_json(url, params=params, headers=headers, timeout=300, delays=(30, 60), name='Meetinghouse')
 
 def get(d, *keys):
     # walk nested dicts, returning None if any key is missing
@@ -109,7 +88,7 @@ for m in locations:
         'time_zone': get(m, 'timeZone', 'id'),
         'website': m.get('website'),
         'unit_count': len(units),
-        'scraped_at': current_datetime,
+        'scraped_at': RUN_DATETIME,
     })
     for a in units:
         associations.append({
@@ -128,7 +107,7 @@ for m in locations:
             'language_code': get(a, 'language', 'code'),
             'language_display': get(a, 'language', 'display'),
             'hours': get(a, 'hours', 'code'),
-            'scraped_at': current_datetime,
+            'scraped_at': RUN_DATETIME,
         })
 
 meetinghouses = pd.DataFrame(meetinghouses)
@@ -136,14 +115,5 @@ meetinghouses = pd.DataFrame(meetinghouses)
 associations = pd.DataFrame(associations).astype({'unit_number': 'Int64', 'org_id': 'Int64'})
 print(f'Parsed {len(meetinghouses)} meetinghouses and {len(associations)} associations')
 
-# copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-copy_to_s3(client=s3, df=meetinghouses, bucket='egw-data-dumps', filepath='lds-meetinghouses/v3/meetinghouses-' + current_datetime_label + '.csv')
-copy_to_s3(client=s3, df=associations, bucket='egw-data-dumps', filepath='lds-meetinghouses/v3/associations-' + current_datetime_label + '.csv')
+save_csv(meetinghouses, 'lds-meetinghouses/v3/meetinghouses-' + RUN_LABEL + '.csv')
+save_csv(associations, 'lds-meetinghouses/v3/associations-' + RUN_LABEL + '.csv')

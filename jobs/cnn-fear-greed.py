@@ -1,18 +1,8 @@
 import requests
 import pandas as pd
 from datetime import datetime, timezone
-import boto3
-from io import StringIO
-import os
-import time
 
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-# get current date and datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+from common import RUN_DATETIME, RUN_LABEL, get, save_csv
 
 # settings
 # the JSON behind https://www.cnn.com/markets/fear-and-greed
@@ -25,7 +15,6 @@ HEADERS = {
     'Referer': 'https://www.cnn.com/',
     'Origin': 'https://www.cnn.com',
 }
-BUCKET = 'egw-data-dumps'
 PREFIX = 'cnn-fear-greed/'
 # the headline index plus its seven components (two of which carry a second series)
 INDICATORS = [
@@ -40,21 +29,10 @@ INDICATORS = [
 MIN_POINTS = 200
 
 # download, retrying transient failures and fast-failing other 4xx
-content = None
-for attempt in range(1, 4):
-    try:
-        r = requests.get(URL, headers=HEADERS, timeout=60)
-        if r.status_code == 200:
-            content = r.json()
-            break
-        if r.status_code < 500 and r.status_code != 429:
-            raise SystemExit(f'Request failed with status {r.status_code}: {r.text[:200]}')
-        print(f'Attempt {attempt}: status {r.status_code}')
-    except (requests.RequestException, ValueError) as e:
-        print(f'Attempt {attempt}: {e}')
-    time.sleep(20 * attempt)
-if content is None:
-    raise SystemExit('Fear & Greed request failed after 3 attempts')
+try:
+    content = get(URL, headers=HEADERS, timeout=60, delays=(20, 40), name='Fear & Greed').json()
+except requests.HTTPError as e:
+    raise SystemExit(f'Request failed with status {e.response.status_code}: {e.response.text[:200]}')
 
 missing = [k for k in ['fear_and_greed'] + INDICATORS if k not in content]
 if missing:
@@ -74,7 +52,7 @@ for name in INDICATORS:
         ind.get('rating'),
         ms_to_utc(ind['timestamp']) if ind.get('timestamp') else None,
         len(ind.get('data', [])),
-        current_datetime,
+        RUN_DATETIME,
     ])
 summary = pd.DataFrame(summary_rows, columns=[
     'indicator', 'score', 'rating', 'timestamp_utc', 'n_points', 'datetime',
@@ -91,19 +69,10 @@ for name in INDICATORS:
     if len(points) < MIN_POINTS:
         raise SystemExit(f'{name} has only {len(points)} data points; expected at least {MIN_POINTS}')
     for p in points:
-        history_rows.append([name, ms_to_utc(p['x']), p['y'], p.get('rating'), current_datetime])
+        history_rows.append([name, ms_to_utc(p['x']), p['y'], p.get('rating'), RUN_DATETIME])
 history = pd.DataFrame(history_rows, columns=['indicator', 'timestamp_utc', 'value', 'rating', 'datetime'])
 
 print(f"Fear & Greed: {headline['score']:.1f} ({headline['rating']}) as of {headline['timestamp']}")
 
-# copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-copy_to_s3(client=s3, df=summary, bucket=BUCKET, filepath=PREFIX + 'cnn-fear-greed-summary-' + current_datetime_label + '.csv')
-copy_to_s3(client=s3, df=history, bucket=BUCKET, filepath=PREFIX + 'cnn-fear-greed-history-' + current_datetime_label + '.csv')
+save_csv(summary, PREFIX + 'cnn-fear-greed-summary-' + RUN_LABEL + '.csv')
+save_csv(history, PREFIX + 'cnn-fear-greed-history-' + RUN_LABEL + '.csv')

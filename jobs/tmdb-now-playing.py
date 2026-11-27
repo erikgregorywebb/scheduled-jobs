@@ -1,19 +1,11 @@
-import requests
 import pandas as pd
-from datetime import datetime
-import boto3
-from io import StringIO
 import os
 import time
 
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-TMDB_API_KEY = os.environ['TMDB_API_KEY']
+from common import RUN_DATETIME, RUN_LABEL, get_json, save_csv
 
-# get current date and datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+# get environmental variables
+TMDB_API_KEY = os.environ['TMDB_API_KEY']
 
 # settings
 # https://developer.themoviedb.org/reference/movie-now-playing-list
@@ -25,9 +17,7 @@ MAX_PAGES = 50  # safety cap; the US list is usually well under this
 def tmdb_get(path, params=None):
     params = dict(params or {})
     params['api_key'] = TMDB_API_KEY
-    response = requests.get(BASE_URL + path, params=params, timeout=30)
-    response.raise_for_status()
-    return response.json()
+    return get_json(BASE_URL + path, params=params, timeout=30, name=path)
 
 # map genre ids to names
 genres = tmdb_get('/genre/movie/list', {'language': LANGUAGE})['genres']
@@ -63,7 +53,7 @@ while page <= total_pages and page <= MAX_PAGES:
             REGION,
             window_min,
             window_max,
-            current_datetime,
+            RUN_DATETIME,
         ])
     page += 1
     time.sleep(0.25)
@@ -78,14 +68,5 @@ df = pd.DataFrame(rows, columns=[
 # TMDB pagination can shift mid-crawl and repeat a title across pages
 df = df.drop_duplicates(subset='tmdb_id', keep='first')
 
-# copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-file_path = 'tmdb-now-playing/tmdb-now-playing-' + current_datetime_label + '.csv'
-copy_to_s3(client=s3, df=df, bucket='egw-data-dumps', filepath=file_path)
+file_path = 'tmdb-now-playing/tmdb-now-playing-' + RUN_LABEL + '.csv'
+save_csv(df, file_path)

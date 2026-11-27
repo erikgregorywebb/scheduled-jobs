@@ -23,7 +23,9 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO = 'erikgregorywebb/scheduled-jobs'
 BRANCH = 'main'
 # This site's own deploy workflow; it isn't a job.
-SKIP_WORKFLOWS = {'pages.yml'}
+SKIP_WORKFLOWS = {'pages.yml', 'checks.yml'}
+# Shared helpers in jobs/, not jobs themselves.
+SKIP_SCRIPTS = {'common.py'}
 
 SCRIPT_RE = re.compile(r'jobs/([A-Za-z0-9_.\-]+\.(?:py|r|R))')
 ENV_RE = re.compile(
@@ -78,6 +80,18 @@ def parse_readme():
         elif len(cells) >= 3:
             rows[name] = {'frequency': None, 'description': md_inline(cells[2]), 'readme_section': section}
     return rows
+
+
+def parse_manifest():
+    """Map script name -> its S3 output stems, from jobs.yml (empty if there's no jobs.yml)."""
+    path = ROOT / 'jobs.yml'
+    if not path.exists():
+        return {}
+    doc = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+    return {
+        job['script']: [o['stem'] if isinstance(o, dict) else o for o in job.get('outputs', [])]
+        for job in (doc.get('jobs') or {}).values()
+    }
 
 
 def describe_cron(expr):
@@ -203,6 +217,7 @@ def script_meta(path):
 
 def build():
     readme = parse_readme()
+    manifest_outputs = parse_manifest()
     workflows = parse_workflows()
     scheduled_by = {}
     for wf in workflows:
@@ -211,7 +226,7 @@ def build():
 
     jobs = []
     for path in sorted((ROOT / 'jobs').iterdir()):
-        if not SCRIPT_RE.match('jobs/' + path.name):
+        if not SCRIPT_RE.match('jobs/' + path.name) or path.name in SKIP_SCRIPTS:
             continue
         entries = scheduled_by.get(path.name, [])
         live = [(wf, s) for wf, s in entries if wf['scheduled']]
@@ -233,6 +248,10 @@ def build():
             'in_readme': path.name in readme,
             **script_meta(path),
         })
+        # jobs.yml lists the exact S3 key stems each job writes; prefer them to the regex guess
+        stems = manifest_outputs.get(path.name)
+        if stems:
+            jobs[-1]['s3_prefixes'] = sorted({s.rsplit('/', 1)[0] + '/' for s in stems})
 
     head = git('rev-parse', 'HEAD')
     return {

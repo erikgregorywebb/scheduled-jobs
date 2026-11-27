@@ -1,14 +1,12 @@
-import requests
 import pandas as pd
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from google.transit import gtfs_realtime_pb2
 import zipfile
-import boto3
-from io import BytesIO, StringIO
+from io import BytesIO
 import sys
-import time
-import os
+
+from common import RUN_DATETIME, RUN_LABEL, get as http_get, save_csv
 
 # Snapshots where every NYC subway train is right now, from MTA's GTFS-realtime
 # feeds (all 8 of them, covering every line including the Staten Island Railway).
@@ -44,23 +42,9 @@ NY = ZoneInfo('America/New_York')
 NYCT_EXTENSION_FIELD = 1001
 DIRECTIONS = {1: 'NORTH', 2: 'EAST', 3: 'SOUTH', 4: 'WEST'}
 
-# fetch a URL, retrying transient failures with backoff
-RETRY_DELAYS = [10, 30, 60]  # seconds to wait before each retry
+# fetch a URL's bytes, retrying transient failures with backoff
 def get(url, name):
-    for attempt in range(len(RETRY_DELAYS) + 1):
-        try:
-            response = requests.get(url, headers=HEADERS, timeout=60)
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-            error = e
-        else:
-            if response.status_code < 500 and response.status_code != 429:
-                response.raise_for_status()  # other 4xx means a bad request: fail fast
-                return response.content
-            error = f'HTTP {response.status_code}'
-        if attempt == len(RETRY_DELAYS):
-            raise RuntimeError(f'{name} request failed after {attempt + 1} attempts: {error}')
-        print(f'{name} attempt {attempt + 1} failed ({error}), retrying in {RETRY_DELAYS[attempt]}s')
-        time.sleep(RETRY_DELAYS[attempt])
+    return http_get(url, headers=HEADERS, timeout=60, name=name).content
 
 # minimal protobuf wire-format reader, just enough for the NYCT extension
 def read_varint(buf, i):
@@ -220,9 +204,6 @@ for feed_name, suffix in FEEDS.items():
 if len(failed_feeds) == len(FEEDS):
     raise RuntimeError('every feed failed; nothing to save')
 
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-
 # fixed columns, so a file with no trains running still has the full header
 COLUMNS = [
     'feed', 'route_id', 'route_name', 'trip_id', 'start_date', 'start_time',
@@ -237,32 +218,14 @@ COLUMNS = [
 df = pd.DataFrame(rows, columns=COLUMNS)
 for col in ['vehicle_stop_sequence', 'vehicle_age_sec', 'upcoming_stops']:
     df[col] = df[col].astype('Int64')
-df['datetime'] = current_datetime
+df['datetime'] = RUN_DATETIME
 print(f'{len(df)} trips across {df["feed"].nunique()} feeds, {int(df["in_service"].sum())} in service')
 if len(df):
     print('in service by route:', df[df['in_service']].groupby('route_id')['trip_id'].nunique().to_dict())
 
-if os.environ.get('DRY_RUN'):
-    # local check without touching S3: DRY_RUN=1 python jobs/nyc-subway-train-positions.py
-    df.to_csv('nyc-subway-train-positions.csv', index=False)
-    print('Dry run: wrote nyc-subway-train-positions.csv')
-else:
-    # get environmental variables
-    AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-    AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-    # copy to s3; a file is written even when no trains are running, so a quiet
-    # hour can be told apart from a missed run
-    s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-    def copy_to_s3(client, df, bucket, filepath):
-        csv_buf = StringIO()
-        df.to_csv(csv_buf, header=True, index=False)
-        csv_buf.seek(0)
-        client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-        print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-    file_path = 'mta/nyc-subway-train-positions/nyc-subway-train-positions-' + current_datetime_label + '.csv'
-    copy_to_s3(client=s3, df=df, bucket='egw-data-dumps', filepath=file_path)
+# a file is written even when no trains are running, so a quiet hour can be
+# told apart from a missed run
+save_csv(df, 'mta/nyc-subway-train-positions/nyc-subway-train-positions-' + RUN_LABEL + '.csv')
 
 if failed_feeds:
     # the snapshot above has the other lines; fail so the missing ones are noticed

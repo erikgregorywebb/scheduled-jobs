@@ -1,13 +1,10 @@
-import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone, timedelta
-import boto3
-from botocore.exceptions import ClientError
-from io import BytesIO
+from datetime import datetime, timedelta
 import re
-import time
 import os
 import pandas as pd
+
+from common import DRY_RUN, RUN_DATETIME, RUN_TIME, get, object_exists, save_bytes
 
 # Saves the Billboard Hot 100 (https://www.billboard.com/charts/hot-100/) to S3: one row per song
 # with rank, title, artist, last week's rank, peak rank, weeks at No. 1 (for songs that peaked
@@ -24,7 +21,6 @@ import pandas as pd
 
 URL = 'https://www.billboard.com/charts/hot-100/'
 HEADERS = {'User-Agent': 'Mozilla/5.0 (compatible; scheduled-jobs data collector)'}
-BUCKET = 'egw-data-dumps'
 PREFIX = 'billboard-hot-100/'
 COLUMNS = ['chart_date', 'rank', 'title', 'artist', 'last_week', 'peak_position',
            'weeks_at_no_1', 'weeks_on_chart', 'status']
@@ -32,22 +28,8 @@ MONTHS = 'January|February|March|April|May|June|July|August|September|October|No
 
 
 def fetch(url):
-    # retries 5xx, 429 and connection errors; any other 4xx fails right away
-    for attempt in range(4):
-        try:
-            response = requests.get(url, headers=HEADERS, timeout=60)
-            if response.status_code == 429 or response.status_code >= 500:
-                raise requests.HTTPError(f'{response.status_code} from {url}', response=response)
-            response.raise_for_status()
-            return response
-        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as e:
-            status = getattr(getattr(e, 'response', None), 'status_code', None)
-            if status is not None and 400 <= status < 500 and status != 429:
-                raise
-            if attempt == 3:
-                raise
-            print(f'Attempt {attempt + 1} for {url} failed ({e}), retrying')
-            time.sleep(15 * (attempt + 1))
+    # retries 5xx, 429 and connection errors (after 15, 30, 45s); any other 4xx fails right away
+    return get(url, headers=HEADERS, timeout=60, delays=(15, 30, 45))
 
 
 def clean(text):
@@ -154,7 +136,7 @@ def parse(html):
 
 
 parse_file = os.environ.get('PARSE_FILE')
-dry_run = bool(os.environ.get('DRY_RUN')) or bool(parse_file)
+dry_run = DRY_RUN or bool(parse_file)
 if parse_file:
     with open(parse_file, encoding='utf-8') as f:
         html = f.read()
@@ -169,7 +151,7 @@ df, chart_date, date_source = parse(html)
 # the chart is dated a Saturday; a stale date means the page stopped updating (or the date is wrong)
 if chart_date.weekday() != 5:
     raise RuntimeError(f'chart date {chart_date} (from {date_source}) is not a Saturday')
-age = datetime.now(timezone.utc).date() - chart_date
+age = RUN_TIME.date() - chart_date
 if age > timedelta(days=21) or age < timedelta(days=-14):
     raise RuntimeError(f'chart date {chart_date} (from {date_source}) is {age.days} days from today')
 
@@ -179,20 +161,14 @@ body = df.to_csv(index=False).encode('utf-8')
 summary = (f'chart dated {chart_date}: #1 {df.iloc[0]["title"]} by {df.iloc[0]["artist"]}, '
            f'{(df["status"] == "new").sum()} new, {(df["status"] == "re-entry").sum()} re-entries')
 
-if dry_run:
+if parse_file:
     print(df.head(10).to_string(index=False))
-    print(f'Dry run: would save {summary} to {csv_key} ({len(body):,} bytes)')
+    print(f'Parsed {summary}; not saved (PARSE_FILE is set)')
+elif not dry_run and object_exists(csv_key):
+    print(f'{csv_key} already saved; Billboard has not published a new chart since. Skipping.')
 else:
-    s3 = boto3.client('s3', aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-                      aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'])
-    try:
-        s3.head_object(Bucket=BUCKET, Key=csv_key)
-        print(f'{csv_key} already saved; Billboard has not published a new chart since. Skipping.')
-    except ClientError as e:
-        if e.response['Error']['Code'] not in ('404', 'NoSuchKey', 'NotFound'):
-            raise
-        metadata = {'source-url': URL, 'chart-date': chart_date.isoformat(),
-                    'downloaded-at': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}
-        s3.upload_fileobj(BytesIO(body), BUCKET, csv_key,
-                          ExtraArgs={'ContentType': 'text/csv', 'Metadata': metadata})
-        print(f'Copy {summary} to S3 Bucket {BUCKET} at {csv_key}, Done!')
+    if dry_run:
+        print(df.head(10).to_string(index=False))
+    # a dry run skips the S3 check above and writes the CSV under ./out/
+    metadata = {'source-url': URL, 'chart-date': chart_date.isoformat(), 'downloaded-at': RUN_DATETIME}
+    save_bytes(body, csv_key, content_type='text/csv', metadata=metadata, label=summary)

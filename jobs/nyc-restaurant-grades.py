@@ -1,27 +1,17 @@
-import requests
 import pandas as pd
-from datetime import datetime
-import boto3
-from io import StringIO
 import os
-import time
+
+from common import RUN_DATETIME, RUN_LABEL, get_json, save_csv
 
 # get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
 # optional: without it Socrata still answers, but with a lower shared rate limit
 NYC_OPEN_DATA_APP_TOKEN = os.environ.get('NYC_OPEN_DATA_APP_TOKEN')
-
-# get current date and datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
 # settings
 # DOHMH New York City Restaurant Inspection Results: one row per violation cited,
 # covering every active restaurant's inspections from the last ~3 years.
 # The dataset is rebuilt daily, and restaurants that close drop out of it.
 URL = 'https://data.cityofnewyork.us/resource/43nn-pn8j.json'
-BUCKET = 'egw-data-dumps'
 PREFIX = 'nyc-restaurant-grades/'
 PAGE_SIZE = 50000
 # ~31.5k restaurants and ~55k graded inspections in Nov 2026; far fewer means a bad response
@@ -38,21 +28,10 @@ headers = {'X-App-Token': NYC_OPEN_DATA_APP_TOKEN} if NYC_OPEN_DATA_APP_TOKEN el
 
 def get_page(params):
     # one request, retrying transient failures and fast-failing other 4xx
-    for attempt in range(1, 4):
-        try:
-            r = requests.get(URL, params=params, headers=headers, timeout=120)
-            if r.status_code == 200:
-                data = r.json()
-                if not isinstance(data, list):
-                    raise SystemExit(f'Expected a list of rows, got: {str(data)[:200]}')
-                return data
-            if r.status_code < 500 and r.status_code != 429:
-                raise SystemExit(f'Request failed with status {r.status_code}: {r.text[:200]}')
-            print(f'Attempt {attempt}: status {r.status_code}')
-        except (requests.RequestException, ValueError) as e:
-            print(f'Attempt {attempt}: {e}')
-        time.sleep(20 * attempt)
-    raise SystemExit(f'Request failed after 3 attempts: {params}')
+    data = get_json(URL, params=params, headers=headers, timeout=120, delays=(20, 40), name='restaurant inspections')
+    if not isinstance(data, list):
+        raise SystemExit(f'Expected a list of rows, got: {str(data)[:200]}')
+    return data
 
 def get_all(params):
     # page through a grouped query; $order keeps paging stable
@@ -115,19 +94,11 @@ for col in [c for c in df.columns if c.endswith('_date')]:
     df[col] = df[col].str[:10]
 # 1900-01-01 marks a new restaurant that hasn't been inspected yet
 df.loc[df['last_inspection_date'] == '1900-01-01', 'last_inspection_date'] = None
-df['scraped_at'] = current_datetime
+df['scraped_at'] = RUN_DATETIME
 
 print(f"{len(df)} restaurants, {df['current_grade'].notna().sum()} with a grade:")
 print(df['current_grade'].value_counts(dropna=False).to_string())
 
 # copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-file_path = PREFIX + 'nyc-restaurant-grades-' + current_datetime_label + '.csv'
-copy_to_s3(client=s3, df=df, bucket=BUCKET, filepath=file_path)
+file_path = PREFIX + 'nyc-restaurant-grades-' + RUN_LABEL + '.csv'
+save_csv(df, file_path)

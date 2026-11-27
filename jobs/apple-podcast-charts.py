@@ -1,18 +1,8 @@
 import requests
 import pandas as pd
-from datetime import datetime
-import boto3
-from io import StringIO
-import os
 import time
 
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-# get current date and datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+from common import RUN_DATETIME, RUN_LABEL, get_json, save_csv
 
 # Apple Podcasts top-level genre ids; None is the overall chart
 # the legacy iTunes RSS feed is used because it supports genre filtering (the v2 feed ignores it)
@@ -38,17 +28,13 @@ categories = {
     'tv & film': 1309,
 }
 
-def get_json(url, attempts=3):
-    for attempt in range(1, attempts + 1):
-        try:
-            r = requests.get(url, timeout=30)
-            if r.status_code == 200:
-                return r.json()
-            print(f'Attempt {attempt}: status {r.status_code} for {url}')
-        except (requests.RequestException, ValueError) as e:
-            print(f'Attempt {attempt}: {e} for {url}')
-        time.sleep(5 * attempt)
-    return None
+# fetch a feed, retrying transient failures; None (so the chart is skipped) if it still fails
+def fetch_json(url):
+    try:
+        return get_json(url, delays=(5, 10))
+    except (RuntimeError, requests.RequestException, ValueError) as e:
+        print(f'{e} for {url}')
+        return None
 
 def label(entry, key):
     return entry.get(key, {}).get('label')
@@ -58,7 +44,7 @@ def get_show_chart(category, genre_id):
     if genre_id is not None:
         url += 'genre=' + str(genre_id) + '/'
     url += 'json'
-    data = get_json(url)
+    data = fetch_json(url)
     if data is None:
         print(f'Skipping category {category}')
         return None
@@ -84,7 +70,7 @@ def get_show_chart(category, genre_id):
             'category_genre_id': genre_id,
             'feed_updated': label(feed, 'updated'),
             'url': url,
-            'datetime': current_datetime,
+            'datetime': RUN_DATETIME,
         })
     print(f'{category}: {len(rows)} shows')
     return pd.DataFrame(rows)
@@ -92,7 +78,7 @@ def get_show_chart(category, genre_id):
 def get_episode_chart():
     # the legacy feed no longer serves episodes, so use the v2 feed (overall chart only)
     url = 'https://rss.marketingtools.apple.com/api/v2/us/podcasts/top/100/podcast-episodes.json'
-    data = get_json(url)
+    data = fetch_json(url)
     if data is None:
         print('Skipping episode chart')
         return None
@@ -110,7 +96,7 @@ def get_episode_chart():
             'chart': 'top-episodes',
             'feed_updated': feed.get('updated'),
             'url': url,
-            'datetime': current_datetime,
+            'datetime': RUN_DATETIME,
         })
     print(f'episodes: {len(rows)} episodes')
     return pd.DataFrame(rows)
@@ -125,21 +111,12 @@ for category, genre_id in categories.items():
 shows = pd.concat(dfs, ignore_index=True) if dfs else None
 episodes = get_episode_chart()
 
-# copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
 if shows is not None:
-    file_path = 'apple-podcast-charts/apple-podcast-charts-shows-' + current_datetime_label + '.csv'
-    copy_to_s3(client=s3, df=shows, bucket='egw-data-dumps', filepath=file_path)
+    file_path = 'apple-podcast-charts/apple-podcast-charts-shows-' + RUN_LABEL + '.csv'
+    save_csv(shows, file_path)
 else:
     print('No show data scraped from any category.')
 
 if episodes is not None and not episodes.empty:
-    file_path = 'apple-podcast-charts/apple-podcast-charts-episodes-' + current_datetime_label + '.csv'
-    copy_to_s3(client=s3, df=episodes, bucket='egw-data-dumps', filepath=file_path)
+    file_path = 'apple-podcast-charts/apple-podcast-charts-episodes-' + RUN_LABEL + '.csv'
+    save_csv(episodes, file_path)
