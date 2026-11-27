@@ -22,8 +22,6 @@ jobs:
         R -e 'install.packages("aws.s3")'
         R -e 'install.packages("httr")'
         R -e 'install.packages("jsonlite")'
-        R -e 'install.packages("lubridate")'
-        R -e 'install.packages("xml2")'
     
     # Run script
     - name: run scripts
@@ -32,4 +30,4 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       
       run: |
-        Rscript .github/diagnostics/travel-advisories-check.r
+        echo "No R script under test. Replace this line with: Rscript jobs/<script>.r"

@@ -37,4 +37,4 @@ jobs:
           NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
           
         run: |
-          python .github/diagnostics/gofundme-probe.py
+          python jobs/wikipedia-daily-metrics.py

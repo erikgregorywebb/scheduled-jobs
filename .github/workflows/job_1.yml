@@ -51,3 +51,4 @@ jobs:
           python jobs/s3-snapshots.py
           python jobs/mormon-reddit-submissions.py
           python jobs/wikipedia-daily-metrics.py
+          python jobs/go-fund-me.py
