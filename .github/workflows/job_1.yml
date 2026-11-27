@@ -5,7 +5,7 @@ name: job_1
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *' # runs at 12:00 UTC everyday
+    - cron: '13 8 * * *' # runs daily at 08:13 UTC (off the top of the hour, when GitHub queues are busiest)
 
 jobs:
   build:

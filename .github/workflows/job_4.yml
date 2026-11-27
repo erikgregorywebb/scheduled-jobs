@@ -5,7 +5,7 @@ name: job_4
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *' # runs at 12:00 UTC everyday
+    - cron: '43 8 * * *' # runs daily at 08:43 UTC (off the top of the hour, staggered after job_3)
 
 jobs:
   build:

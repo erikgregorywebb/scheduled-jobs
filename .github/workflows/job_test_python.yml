@@ -1,9 +1,7 @@
 name: job_test_python
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 1 1 *' # https://stackoverflow.com/questions/8324306/a-cron-job-that-will-never-execute
+  workflow_dispatch: # manual runs only, from the Actions tab
 
 jobs:
   build:
