@@ -137,3 +137,8 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 15 # one ~73 MB download and upload; room for retries
         run: python jobs/faa-aircraft-registry.py
+
+      - name: run cnn-fear-greed
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: python jobs/cnn-fear-greed.py
