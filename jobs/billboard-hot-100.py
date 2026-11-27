@@ -4,7 +4,6 @@ from datetime import datetime, timezone, timedelta
 import boto3
 from botocore.exceptions import ClientError
 from io import BytesIO
-import gzip
 import re
 import time
 import os
@@ -15,8 +14,7 @@ import pandas as pd
 # there), weeks on chart and a new / re-entry flag.
 # Billboard publishes the chart on Tuesdays, dated the Saturday of the following week, and the page
 # only ever shows the current chart. This runs daily and saves a chart only the first time it sees
-# that chart date, so each saved file is one weekly chart. The raw page is saved gzipped beside the
-# CSV, so a chart can be re-parsed later if the parser turns out to have missed something.
+# that chart date, so each saved file is one weekly chart.
 # robots.txt (checked 2026-11-27) allows /charts/ for User-agent: *.
 # There's no API: the chart is parsed from the page's HTML. If Billboard changes the layout,
 # the checks below fail the run (and print what they found) rather than saving a bad chart.
@@ -177,16 +175,13 @@ if age > timedelta(days=21) or age < timedelta(days=-14):
 
 name = 'billboard-hot-100-' + chart_date.isoformat()
 csv_key = PREFIX + name + '.csv'
-html_key = PREFIX + 'raw/' + name + '.html.gz'
 body = df.to_csv(index=False).encode('utf-8')
-raw = gzip.compress(html.encode('utf-8'))
 summary = (f'chart dated {chart_date}: #1 {df.iloc[0]["title"]} by {df.iloc[0]["artist"]}, '
            f'{(df["status"] == "new").sum()} new, {(df["status"] == "re-entry").sum()} re-entries')
 
 if dry_run:
     print(df.head(10).to_string(index=False))
-    print(f'Dry run: would save {summary} to {csv_key} ({len(body):,} bytes) '
-          f'and the page to {html_key} ({len(raw):,} bytes)')
+    print(f'Dry run: would save {summary} to {csv_key} ({len(body):,} bytes)')
 else:
     s3 = boto3.client('s3', aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
                       aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'])
@@ -198,10 +193,6 @@ else:
             raise
         metadata = {'source-url': URL, 'chart-date': chart_date.isoformat(),
                     'downloaded-at': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}
-        # raw page first, so a saved CSV always has its page beside it
-        s3.upload_fileobj(BytesIO(raw), BUCKET, html_key,
-                          ExtraArgs={'ContentType': 'text/html', 'ContentEncoding': 'gzip',
-                                     'Metadata': metadata})
         s3.upload_fileobj(BytesIO(body), BUCKET, csv_key,
                           ExtraArgs={'ContentType': 'text/csv', 'Metadata': metadata})
         print(f'Copy {summary} to S3 Bucket {BUCKET} at {csv_key}, Done!')
