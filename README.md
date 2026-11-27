@@ -1,14 +1,5 @@
 # Scheduled Jobs
 
-A summary of every job, with live run status, is published at https://erikgregorywebb.github.io/scheduled-jobs/. It's built by `site/build.py` and deployed by the `pages` workflow on each push to `main` that touches `jobs/`, `jobs.yml`, the workflows, `site/` or this README. To preview it locally: `pip install pyyaml && python site/build.py`, then open `_site/index.html`.
-
-Python scripts in `jobs/` that collect public data on a schedule and save snapshots to the `egw-data-dumps` S3 bucket, run by GitHub Actions.
-
-- `jobs.yml` lists every job: its script, workflow, schedule, secrets, timeouts and the S3 files it writes. The workflows in `.github/workflows/job_*.yml` and the tables below are generated from it with `python tools/manifest.py`.
-- `jobs/common.py` holds the shared helpers: HTTP with retries, S3 writes, one UTC run timestamp. Run any job with `DRY_RUN=1` to write its files under `out/` instead of S3.
-- `freshness-check.py` runs daily and fails when a job's newest file is overdue or much smaller than usual.
-- `archive/` holds retired scripts, including the R versions of the jobs ported to Python.
-
 <!-- BEGIN GENERATED FROM jobs.yml: edit jobs.yml and run `python tools/manifest.py` -->
 
 ## Active
