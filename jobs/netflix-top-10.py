@@ -4,12 +4,14 @@ from email.utils import parsedate_to_datetime
 import boto3
 from botocore.exceptions import ClientError
 from io import BytesIO
-import gzip
+import csv
+import pandas as pd
 import time
 import os
 
 # Saves Netflix's official Top 10 downloads (https://www.netflix.com/tudum/top10,
-# formerly top10.netflix.com, which now redirects there) to S3, gzipped but otherwise unchanged.
+# formerly top10.netflix.com, which now redirects there) to S3, converted from TSV to CSV
+# with every value kept exactly as published (read as text, so nothing is reformatted).
 #   all-weeks-global.tsv     every week since 2021-07-04: top 10 films/TV, English and non-English,
 #                            with hours viewed, runtime, views and weeks in the top 10
 #   all-weeks-countries.tsv  every week since 2021-07-04: top 10 films and TV in each of ~95 countries
@@ -112,7 +114,7 @@ for name in FILES:
         print(f'{name}: no Last-Modified header; naming the file after the download time')
     # named after when Netflix last updated the file (UTC)
     file_path = (PREFIX + name + '/netflix-top-10-' + name + '-'
-                 + source_time.strftime('%Y-%m-%d-%H-%M-%S') + '.tsv.gz')
+                 + source_time.strftime('%Y-%m-%d-%H-%M-%S') + '.csv')
 
     if not dry_run:
         try:
@@ -133,18 +135,24 @@ for name in FILES:
     if 'tab-separated' not in response.headers.get('Content-Type', ''):
         raise RuntimeError(f'{name}: unexpected Content-Type {response.headers.get("Content-Type")}')
     n_rows, latest_week = validate(name, content.decode('utf-8'))
-    body = gzip.compress(content, compresslevel=9)
+    # TSV to CSV: read every value as text (QUOTE_NONE keeps quote marks in titles literal,
+    # keep_default_na keeps 'N/A' as written), then write it back out comma-separated
+    df = pd.read_csv(BytesIO(content), sep='\t', dtype=str, keep_default_na=False,
+                     quoting=csv.QUOTE_NONE, encoding='utf-8')
+    if df.shape[0] != n_rows or list(df.columns) != FILES[name][0]:
+        raise RuntimeError(f'{name}: TSV parsed to {df.shape}, expected {n_rows} rows')
+    body = df.to_csv(index=False).encode('utf-8')
     summary = f'{n_rows:,} rows' + (f', latest week {latest_week}' if latest_week else '')
 
     if dry_run:
         print(f'Dry run: would save {name} ({summary}, {len(content):,} bytes, '
-              f'{len(body):,} gzipped) to {file_path}')
+              f'{len(body):,} as CSV) to {file_path}')
         continue
 
     s3.upload_fileobj(
         BytesIO(body), BUCKET, file_path,
         ExtraArgs={
-            'ContentType': 'application/gzip',
+            'ContentType': 'text/csv',
             'Metadata': {
                 'source-url': url,
                 'source-last-modified': last_modified or '',
