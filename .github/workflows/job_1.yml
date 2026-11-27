@@ -42,6 +42,8 @@ jobs:
           
         run: | 
           python jobs/apple-app-store.py
+          python jobs/apple-app-store-charts.py
+          python jobs/apple-podcast-charts.py
           python jobs/freddie-mac-rates.py
           python jobs/newsapi-top-headlines.py
           python jobs/spotify-podcast-charts.py
