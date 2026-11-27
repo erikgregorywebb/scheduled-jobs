@@ -1,9 +1,7 @@
 name: job_test_python
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 1 1 *' # runs once a year, at 00:00 UTC on Jan 1; meant to be run manually
+  workflow_dispatch: # manual runs only, from the Actions tab
 
 jobs:
   build:
