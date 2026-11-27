@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scheduled Jobs</title>
+<meta name="description" content="Every scheduled data-collection job in erikgregorywebb/scheduled-jobs: what it collects, when it runs, and how its last run went.">
+<style>
+  :root {
+    --bg: #f7f7f5; --surface: #ffffff; --surface-2: #f0f0ed; --border: #e2e2dd;
+    --text: #1c1c1a; --muted: #6b6b66; --accent: #2457c5; --accent-soft: #e6ecfa;
+    --ok: #1f8a4c; --ok-soft: #e3f3e9; --bad: #c8362d; --bad-soft: #fbe7e5;
+    --warn: #a86a00; --warn-soft: #fbf0d9; --idle: #9a9a94; --idle-soft: #ededea;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413; --surface: #1d1d1b; --surface-2: #262624; --border: #33332f;
+      --text: #ececea; --muted: #9d9d97; --accent: #7fa2ee; --accent-soft: #1f2a44;
+      --ok: #4cc27f; --ok-soft: #173325; --bad: #f0726a; --bad-soft: #3d1f1c;
+      --warn: #e0a940; --warn-soft: #3a2e14; --idle: #77776f; --idle-soft: #2a2a27;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413; --surface: #1d1d1b; --surface-2: #262624; --border: #33332f;
+    --text: #ececea; --muted: #9d9d97; --accent: #7fa2ee; --accent-soft: #1f2a44;
+    --ok: #4cc27f; --ok-soft: #173325; --bad: #f0726a; --bad-soft: #3d1f1c;
+    --warn: #e0a940; --warn-soft: #3a2e14; --idle: #77776f; --idle-soft: #2a2a27;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: var(--mono); font-size: 0.88em; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+  h1 { font-size: 28px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 18px; margin: 40px 0 12px; }
+  .sub { color: var(--muted); margin: 0; }
+  .meta { color: var(--muted); font-size: 13px; text-align: right; }
+  .meta a { color: inherit; text-decoration: underline; text-decoration-color: var(--border); }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .tile .v { font-size: 26px; font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tile .l { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .wfs { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+  .wf { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .wf-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .wf-name { font-family: var(--mono); font-weight: 600; font-size: 15px; }
+  .wf-sched { font-weight: 550; }
+  .wf-note { color: var(--muted); font-size: 13px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .dots { display: flex; gap: 3px; flex-wrap: wrap; min-height: 12px; }
+  .dot { width: 10px; height: 10px; border-radius: 2px; background: var(--idle-soft); display: block; }
+  .dot.success { background: var(--ok); } .dot.failure, .dot.timed_out, .dot.startup_failure { background: var(--bad); }
+  .dot.cancelled, .dot.skipped { background: var(--idle); } .dot.running { background: var(--warn); }
+  .wf-scripts { font-size: 12.5px; color: var(--muted); font-family: var(--mono); line-height: 1.6; }
+
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 550; padding: 1px 8px; border-radius: 99px; white-space: nowrap; background: var(--idle-soft); color: var(--muted); }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pill.success { background: var(--ok-soft); color: var(--ok); }
+  .pill.failure, .pill.timed_out, .pill.startup_failure { background: var(--bad-soft); color: var(--bad); }
+  .pill.running { background: var(--warn-soft); color: var(--warn); }
+  .pill.plain::before { display: none; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .controls input, .controls select {
+    font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-width: 0;
+  }
+  .controls input { flex: 1 1 240px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--muted); padding: 7px 12px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 550; }
+  .count { color: var(--muted); font-size: 13px; margin-left: auto; }
+
+  .table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; padding: 10px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+  th[aria-sort="ascending"]::after { content: " ↑"; } th[aria-sort="descending"]::after { content: " ↓"; }
+  td:nth-child(1) { min-width: 210px; }
+  td:nth-child(5) { min-width: 150px; }
+  td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  tr.inactive td { opacity: 0.62; }
+  .script { font-family: var(--mono); font-weight: 600; font-size: 13.5px; word-break: break-word; }
+  .lang { font-size: 11px; font-weight: 600; padding: 0 6px; border-radius: 4px; background: var(--surface-2); color: var(--muted); margin-left: 6px; vertical-align: 1px; }
+  .desc { color: var(--text); min-width: 28ch; max-width: 56ch; }
+  .desc code { background: var(--surface-2); padding: 0 3px; border-radius: 3px; }
+  .small { font-size: 12.5px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { font-family: var(--mono); font-size: 11.5px; padding: 1px 6px; border-radius: 4px; background: var(--surface-2); color: var(--text); overflow-wrap: anywhere; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .nowrap { white-space: nowrap; }
+  .empty { padding: 32px; text-align: center; color: var(--muted); }
+  .notice { font-size: 13px; color: var(--warn); background: var(--warn-soft); padding: 8px 12px; border-radius: 8px; margin: 0 0 12px; }
+  .notice[hidden] { display: none; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+  .theme { font: inherit; font-size: 13px; color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; cursor: pointer; margin-top: 6px; }
+
+  @media (max-width: 760px) {
+    .wfs { grid-template-columns: 1fr; }
+    .meta { text-align: left; }
+    thead { display: none; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    tr { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    tr:last-child { border-bottom: 0; }
+    td { border: 0; padding: 3px 0; }
+    td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    td.num { text-align: left; }
+    .desc { max-width: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Scheduled Jobs</h1>
+      <p class="sub">Data-collection scripts that run on GitHub Actions and save snapshots to S3.</p>
+    </div>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <section class="tiles" id="tiles" aria-label="Summary"></section>
+
+  <h2>Workflows</h2>
+  <p class="notice" id="live-notice" hidden></p>
+  <section class="wfs" id="workflows"></section>
+
+  <h2>Jobs</h2>
+  <div class="controls">
+    <input id="q" type="search" placeholder="Search scripts, descriptions, S3 prefixes…" aria-label="Search jobs">
+    <div class="seg" role="group" aria-label="Status">
+      <button data-status="all" aria-pressed="false">All</button>
+      <button data-status="active" aria-pressed="true">Active</button>
+      <button data-status="inactive" aria-pressed="false">Inactive</button>
+    </div>
+    <select id="wf-filter" aria-label="Workflow"></select>
+    <select id="lang-filter" aria-label="Language">
+      <option value="">All languages</option><option>Python</option><option>R</option>
+    </select>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="table">
+    <table>
+      <thead>
+        <tr>
+          <th data-sort="script">Script</th>
+          <th data-sort="schedule">Schedule</th>
+          <th data-sort="description">What it collects</th>
+          <th data-sort="last_run">Last run</th>
+          <th data-sort="s3">S3 prefix</th>
+          <th data-sort="secrets">Secrets</th>
+          <th data-sort="last_changed">Changed</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    Generated by <code>site/build.py</code> from the workflows in <code>.github/workflows/</code>, the scripts in <code>jobs/</code>, the README and git history.
+    Run status is fetched live from the GitHub API when the page loads.
+    Raw data: <a href="jobs.json">jobs.json</a>.
+    <div><button class="theme" id="theme" type="button">Theme: auto</button></div>
+  </footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const REPO_URL = `https://github.com/${DATA.repo}`;
+const API = `https://api.github.com/repos/${DATA.repo}`;
+const live = { runs: {}, steps: {} };   // runs[file] = [...]; steps[script] = {conclusion, started_at, completed_at, html_url}
+const state = { q: '', status: 'active', wf: '', lang: '', sort: 'script', dir: 1 };
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k) { try { return JSON.parse(sessionStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+function ago(iso) {
+  if (!iso) return '';
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  const f = (n, u) => `${Math.round(n)} ${u}${Math.round(n) === 1 ? '' : 's'}`;
+  if (s < 0) return 'in ' + until(iso);
+  if (s < 90) return 'just now';
+  if (s < 5400) return f(s / 60, 'min') + ' ago';
+  if (s < 129600) return f(s / 3600, 'hour') + ' ago';
+  if (s < 86400 * 45) return f(s / 86400, 'day') + ' ago';
+  if (s < 86400 * 548) return f(s / 86400 / 30.4, 'month') + ' ago';
+  return f(s / 86400 / 365, 'year') + ' ago';
+}
+function until(date) {
+  const m = Math.max(0, Math.round((date - Date.now()) / 60000));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60), r = m % 60;
+  return r ? `${h}h ${r}m` : `${h}h`;
+}
+function duration(a, b) {
+  if (!a || !b) return '';
+  const s = Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000));
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
+}
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+const fmtTime = (d) => d.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+
+// Next fire time of a 5-field cron expression (UTC), searching minute by minute for up to 8 days.
+function nextCron(expr) {
+  const f = expr.trim().split(/\s+/);
+  if (f.length !== 5) return null;
+  const match = (field, v) => field.split(',').some((part) => {
+    const [range, step] = part.split('/');
+    const st = step ? +step : 1;
+    if (range === '*') return v % st === 0;
+    const [lo, hi] = range.split('-').map(Number);
+    return hi === undefined ? (step ? v >= lo && (v - lo) % st === 0 : v === lo) : v >= lo && v <= hi && (v - lo) % st === 0;
+  });
+  const d = new Date(); d.setUTCSeconds(0, 0); d.setUTCMinutes(d.getUTCMinutes() + 1);
+  for (let i = 0; i < 8 * 1440; i++, d.setUTCMinutes(d.getUTCMinutes() + 1)) {
+    if (match(f[0], d.getUTCMinutes()) && match(f[1], d.getUTCHours()) && match(f[2], d.getUTCDate())
+        && match(f[3], d.getUTCMonth() + 1) && match(f[4], d.getUTCDay())) return new Date(d);
+  }
+  return null;
+}
+
+const runState = (r) => r.status === 'completed' ? (r.conclusion || 'neutral') : 'running';
+const label = { success: 'Passed', failure: 'Failed', cancelled: 'Cancelled', timed_out: 'Timed out', skipped: 'Skipped', running: 'Running', startup_failure: 'Startup failure', neutral: 'Neutral' };
+const pill = (st) => `<span class="pill ${esc(st)}">${esc(label[st] || st)}</span>`;
+
+function renderMeta() {
+  const when = new Date(DATA.generated_at);
+  $('#meta').innerHTML = `<a href="${REPO_URL}">${esc(DATA.repo)}</a><br>
+    Built ${esc(fmtDate(DATA.generated_at))} ${esc(when.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }))}
+    from <a href="${REPO_URL}/commit/${esc(DATA.commit)}"><code>${esc(DATA.commit_short)}</code></a>`;
+}
+
+function renderTiles() {
+  const active = DATA.jobs.filter((j) => j.status === 'active');
+  const scheduled = DATA.workflows.filter((w) => w.scheduled);
+  const perDay = active.reduce((n, j) => n + (j.runs_per_day || 0), 0);
+  const py = active.filter((j) => j.language === 'Python').length;
+  const tiles = [
+    [active.length, `active scripts · ${DATA.jobs.length - active.length} inactive`],
+    [scheduled.length, 'scheduled workflows'],
+    [perDay.toLocaleString(), 'script runs per day'],
+    [`${py} / ${active.length - py}`, 'Python / R'],
+  ];
+  const files = scheduled.map((w) => w.file);
+  if (files.some((f) => live.runs[f])) {
+    const latest = files.map((f) => (live.runs[f] || []).find((r) => r.status === 'completed')).filter(Boolean);
+    const ok = latest.filter((r) => r.conclusion === 'success').length;
+    tiles.push([`${ok} / ${latest.length}`, 'workflows passing on last run']);
+    const steps = Object.values(live.steps);
+    if (steps.length) {
+      const bad = steps.filter((s) => s.conclusion && s.conclusion !== 'success' && s.conclusion !== 'skipped').length;
+      tiles.push([bad, bad === 1 ? 'script failed on last run' : 'scripts failed on last run']);
+    }
+  }
+  $('#tiles').innerHTML = tiles.map(([v, l]) => `<div class="tile"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`).join('');
+}
+
+function renderWorkflows() {
+  const wfs = [...DATA.workflows].sort((a, b) => (b.scheduled - a.scheduled) || a.name.localeCompare(b.name));
+  $('#workflows').innerHTML = wfs.map((w) => {
+    const runs = live.runs[w.file];
+    const last = runs && runs.find((r) => r.status === 'completed');
+    const running = runs && runs.find((r) => r.status !== 'completed');
+    const next = w.crons.map((c) => nextCron(c.expr)).filter(Boolean).sort((a, b) => a - b)[0];
+    const sched = w.crons.length ? w.crons.map((c) => esc(c.text)).join('<br>') : 'Manual runs only';
+    const note = w.crons.map((c) => c.comment).filter(Boolean)[0];
+    const kv = [];
+    if (next) kv.push(['Next run', `${esc(fmtTime(next))} <span class="small">(in ${esc(until(next))})</span>`]);
+    if (last) kv.push(['Last run', `${pill(runState(last))} <a href="${esc(last.html_url)}">${esc(ago(last.run_started_at))}</a> <span class="small">${esc(duration(last.run_started_at, last.updated_at))} · ${esc(last.event.replace('_', ' '))}</span>`]);
+    if (running) kv.push(['Now', `${pill('running')} <a href="${esc(running.html_url)}">started ${esc(ago(running.run_started_at))}</a>`]);
+    if (w.timeout) kv.push(['Timeout', `${w.timeout} min`]);
+    if (w.runtimes.length) kv.push(['Runtime', esc(w.runtimes.join(', '))]);
+    const dots = runs ? [...runs].reverse().map((r) => {
+      const st = runState(r);
+      return `<a class="dot ${esc(st)}" href="${esc(r.html_url)}" title="${esc(`${label[st] || st} · ${fmtDate(r.run_started_at)} ${new Date(r.run_started_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} · ${r.event.replace('_', ' ')}`)}"></a>`;
+    }).join('') : '';
+    const scripts = w.scripts.length ? w.scripts.map((s) => esc(s.script)).join(' · ') : (w.manual ? 'Runs whichever scripts you pass it' : '');
+    return `<article class="wf">
+      <div class="wf-top"><a class="wf-name" href="${REPO_URL}/actions/workflows/${esc(w.file)}">${esc(w.name)}</a>
+        <span class="small">${w.scripts.length ? `${w.scripts.length} script${w.scripts.length === 1 ? '' : 's'}` : 'test'}</span></div>
+      <div><div class="wf-sched">${sched}</div>${note ? `<div class="wf-note">${esc(note)}</div>` : ''}</div>
+      ${kv.length ? `<dl class="kv">${kv.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>` : ''}
+      ${runs && runs.length ? `<div><div class="small" style="margin-bottom:4px">Last ${runs.length} runs</div><div class="dots">${dots}</div></div>` : ''}
+      <div class="wf-scripts">${scripts}</div>
+    </article>`;
+  }).join('');
+}
+
+function sortValue(j, key) {
+  switch (key) {
+    case 'schedule': return `${String(100 - (j.runs_per_day || 0)).padStart(3, '0')} ${j.workflows[0] || '~'}`;
+    case 'description': return (j.description || '').replace(/<[^>]+>/g, '').toLowerCase();
+    case 'last_run': { const s = live.steps[j.script]; return s ? (s.conclusion === 'success' ? 2 : 1) : 3; }
+    case 's3': return (j.s3_prefixes[0] || '~');
+    case 'secrets': return -j.secrets.length;
+    case 'last_changed': return -(new Date(j.last_changed || 0).getTime());
+    default: return j.script;
+  }
+}
+
+function renderRows() {
+  const q = state.q.toLowerCase();
+  const rows = DATA.jobs.filter((j) =>
+    (state.status === 'all' || j.status === state.status)
+    && (!state.wf || j.workflows.includes(state.wf))
+    && (!state.lang || j.language === state.lang)
+    && (!q || [j.script, j.description, j.frequency, ...j.s3_prefixes, ...j.secrets, ...j.workflows].join(' ').toLowerCase().includes(q)));
+  rows.sort((a, b) => {
+    const x = sortValue(a, state.sort), y = sortValue(b, state.sort);
+    return (x < y ? -1 : x > y ? 1 : a.script.localeCompare(b.script)) * state.dir;
+  });
+  document.querySelectorAll('th[data-sort]').forEach((th) =>
+    th.setAttribute('aria-sort', th.dataset.sort === state.sort ? (state.dir > 0 ? 'ascending' : 'descending') : 'none'));
+  $('#count').textContent = `${rows.length} of ${DATA.jobs.length}`;
+  if (!rows.length) { $('#rows').innerHTML = `<tr><td colspan="7" class="empty">No jobs match.</td></tr>`; return; }
+
+  $('#rows').innerHTML = rows.map((j) => {
+    const src = `${REPO_URL}/blob/${DATA.branch}/jobs/${encodeURIComponent(j.script)}`;
+    const schedule = j.status === 'active'
+      ? `<div class="nowrap">${esc(j.schedule || j.frequency || '')}</div><div class="small">${j.workflows.map((w) => esc(w)).join(', ')}${j.step_timeout ? ` · ${j.step_timeout} min limit` : ''}</div>`
+      : `<span class="pill plain">Not scheduled</span>`;
+    const s = live.steps[j.script];
+    const lastRun = s
+      ? `${pill(s.conclusion || 'running')}<div class="small"><a href="${esc(s.html_url)}">${esc(ago(s.started_at))}</a>${s.completed_at ? ' · ' + esc(duration(s.started_at, s.completed_at)) : ''}</div>`
+      : `<span class="small">${j.status !== 'active' ? '—' : Object.keys(live.runs).length ? 'Not in the latest run' : 'Loading…'}</span>`;
+    const prefixes = j.s3_prefixes.length ? `<div class="chips">${j.s3_prefixes.map((p) => `<span class="chip">${esc(p)}</span>`).join('')}</div>` : '<span class="small">—</span>';
+    const secrets = j.secrets.length ? `<div class="chips">${j.secrets.map((p) => `<span class="chip">${esc(p)}</span>`).join('')}</div>` : '<span class="small">None</span>';
+    const options = j.options.length ? `<div class="small" style="margin-top:4px">Options: ${j.options.map(esc).join(', ')}</div>` : '';
+    const changed = j.last_changed
+      ? `<div class="nowrap" title="${esc(j.last_change_subject || '')}">${esc(ago(j.last_changed))}</div><div class="small">${j.commits} commit${j.commits === 1 ? '' : 's'}${j.added ? ` · since ${esc(new Date(j.added).getFullYear())}` : ''}</div>`
+      : '';
+    return `<tr class="${j.status}">
+      <td data-label="Script"><a class="script" href="${src}">${esc(j.script)}</a><span class="lang">${j.language === 'Python' ? 'PY' : 'R'}</span><div class="small">${j.lines.toLocaleString()} lines</div></td>
+      <td data-label="Schedule">${schedule}</td>
+      <td data-label="What it collects"><div class="desc">${j.description || '<span class="small">Not described in the README.</span>'}</div></td>
+      <td data-label="Last run">${lastRun}</td>
+      <td data-label="S3 prefix">${prefixes}</td>
+      <td data-label="Secrets">${secrets}${options}</td>
+      <td data-label="Changed">${changed}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderControls() {
+  const wfs = [...new Set(DATA.jobs.flatMap((j) => j.workflows))].sort();
+  $('#wf-filter').innerHTML = `<option value="">All workflows</option>` + wfs.map((w) => `<option>${esc(w)}</option>`).join('');
+  $('#q').addEventListener('input', (e) => { state.q = e.target.value; renderRows(); });
+  $('#wf-filter').addEventListener('change', (e) => { state.wf = e.target.value; renderRows(); });
+  $('#lang-filter').addEventListener('change', (e) => { state.lang = e.target.value; renderRows(); });
+  document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+    state.status = b.dataset.status;
+    document.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    renderRows();
+  }));
+  document.querySelectorAll('th[data-sort]').forEach((th) => th.addEventListener('click', () => {
+    state.dir = state.sort === th.dataset.sort ? -state.dir : 1;
+    state.sort = th.dataset.sort;
+    renderRows();
+  }));
+}
+
+function setupTheme() {
+  const btn = $('#theme'), order = ['auto', 'light', 'dark'];
+  let cur = 'auto';
+  try { cur = localStorage.getItem('theme') || 'auto'; } catch {}
+  const apply = () => {
+    if (cur === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', cur);
+    btn.textContent = `Theme: ${cur}`;
+  };
+  btn.addEventListener('click', () => {
+    cur = order[(order.indexOf(cur) + 1) % order.length];
+    try { localStorage.setItem('theme', cur); } catch {}
+    apply();
+  });
+  apply();
+}
+
+// Live status: recent runs of each scheduled workflow, then the step results of each one's latest completed run.
+async function gh(path) {
+  const res = await fetch(API + path, { headers: { Accept: 'application/vnd.github+json' } });
+  if (!res.ok) {
+    const err = new Error(`GitHub API ${res.status}`);
+    err.rateLimited = res.status === 403 || res.status === 429;
+    throw err;
+  }
+  return res.json();
+}
+
+async function loadLive() {
+  const cached = store.get('live-v1');
+  if (cached && cached.commit === DATA.commit && Date.now() - cached.at < 5 * 60 * 1000) {
+    Object.assign(live, cached.live);
+    return;
+  }
+  const scheduled = DATA.workflows.filter((w) => w.scheduled);
+  await Promise.all(scheduled.map(async (w) => {
+    const data = await gh(`/actions/workflows/${encodeURIComponent(w.file)}/runs?branch=${DATA.branch}&per_page=24&exclude_pull_requests=true`);
+    live.runs[w.file] = data.workflow_runs.map((r) => ({
+      id: r.id, status: r.status, conclusion: r.conclusion, event: r.event,
+      run_started_at: r.run_started_at, updated_at: r.updated_at, html_url: r.html_url,
+    }));
+    const last = live.runs[w.file].find((r) => r.status === 'completed');
+    if (!last) return;
+    const jobs = await gh(`/actions/runs/${last.id}/jobs`);
+    const steps = jobs.jobs.flatMap((job) => (job.steps || []).map((s) => ({ ...s, job_url: job.html_url })));
+    for (const s of w.scripts) {
+      const step = steps.find((x) => x.name === s.step_name);
+      if (step) live.steps[s.script] = { conclusion: step.conclusion, started_at: step.started_at, completed_at: step.completed_at, html_url: step.job_url };
+    }
+  }));
+  store.set('live-v1', { at: Date.now(), commit: DATA.commit, live });
+}
+
+function render() { renderTiles(); renderWorkflows(); renderRows(); }
+
+renderMeta();
+setupTheme();
+renderControls();
+render();
+loadLive().then(render).catch((err) => {
+  const n = $('#live-notice');
+  n.hidden = false;
+  n.textContent = err.rateLimited
+    ? 'Live run status is unavailable right now: the GitHub API rate limit for your network was reached. It resets within the hour.'
+    : `Live run status couldn't be loaded (${err.message}).`;
+  render();
+});
+</script>
+</body>
+</html>

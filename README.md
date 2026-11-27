@@ -1,5 +1,7 @@
 # Scheduled Jobs
 
+A summary of every job, with live run status, is published at https://erikgregorywebb.github.io/scheduled-jobs/. It's built by `site/build.py` and deployed by the `pages` workflow on each push to `main` that touches `jobs/`, the workflows, `site/` or this README. To preview it locally: `pip install pyyaml && python site/build.py`, then open `_site/index.html`.
+
 ## Active
 
 Scheduled to run by the GitHub Actions workflow named in the Job column.
@@ -20,6 +22,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `tsa-passenger-volumes.r`  | R  | Daily  | Scrapes daily passenger volume counts reported by the TSA, dumps to S3.  | Job 3 |
 | `mta-lift-status.r`  | R  | Daily  | Scrapes elevator and escalator status logs from NY's Metro North Railroad, dumps to S3 under `mta/metro-north-lifts/`.  | Job 3 |
 | `nyc-311-requests.py`  | Python  | Daily  | Scrapes 10k of the latest NYC 311 requests, dumps to S3. | Job 1 |
+| `nyc-restaurant-grades.py`  | Python  | Daily  | Snapshots every restaurant in NYC DOHMH's [restaurant inspection results](https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j) (~31,500) with its current and previous letter grade, score, and inspection dates, so grade changes show up between snapshots, dumps to S3. | Job 1 |
 | `nyrr-races.r`  | R  | Daily  | Scrapes a list of upcoming races hosted by NYRR, dumps to S3. | Job 3 |
 | `ksl-rentals.r`  | R  | Daily  | Scrapes [KSL's](https://homes.ksl.com/rent/search) rental unit listings in Utah County, dumps to S3. | Job 3 |
 | `hacker-news.r`  | R  | Daily  | Scrapes the first ten pages of YC's [Hacker News](https://news.ycombinator.com/news?p=1), dumps to S3. | Job 3 |
@@ -33,6 +36,8 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `wikipedia-daily-metrics.py`  | Python  | Daily  | Collects the previous day's most-viewed Wikipedia articles from the [Wikimedia pageviews API](https://wikimedia.org/api/rest_v1/), dumps to S3. | Job 1 |
 | `lds-meetinghouses.py`  | Python  | Daily  | Collects every [LDS meetinghouse](https://maps.churchofjesuschrist.org/) worldwide (~19,800) with address, coordinates and hours, plus the wards, stakes and other units that meet in each, dumps to S3. | Job 1 |
 | `lds-temples.py`  | Python  | Daily  | Collects every [LDS temple](https://www.churchofjesuschrist.org/temples/list) (~385) with its status (operating, renovation, opening soon, construction, announced), plus address, coordinates and hours from the Meetinghouse Locator, milestone dates (announced, groundbreaking, dedicated) from each details page, and upcoming closures, dumps to S3. | Job 1 |
+| `lds-newsroom-rss.py`  | Python  | Daily  | Collects the 25 latest press releases and announcements from the [Church Newsroom](https://newsroom.churchofjesuschrist.org/)'s official [RSS feed](https://newsroom.churchofjesuschrist.org/rss), with title, link, publish date, dateline, summary and image, dumps to S3. | Job 1 |
+| `polymarket-markets.py`  | Python  | Hourly  | Snapshots prices, bid/ask, volume and liquidity for the ~4,000 most active open markets on [Polymarket](https://polymarket.com/) (the top 2,000 each by 24-hour volume, total volume and liquidity) from its public [Gamma API](https://docs.polymarket.com/), dumps to S3. | Job 5 |
 | `pinal-county-parcels.py`  | Python  | Daily  | Scrapes parcel details from the Pinal County, Arizona parcel search, dumps to S3. | Job 4 |
 | `go-fund-me.py`  | Python  | Daily  | Collects stats for the first three featured fundraisers on [GoFundMe](https://www.gofundme.com/discover)'s discover page, dumps to S3. | Job 1 |
 | `travel-advisories.r`  | R  | Daily  | Collects the US State Department's [travel advisories](https://travel.state.gov/_res/rss/TAsTWs.xml) from its official RSS feed, dumps to S3. | Job 3 |
@@ -40,6 +45,8 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `treasury-daily.py`  | Python  | Daily  | Collects US Treasury yield curves, auction results and upcoming auctions, Debt to the Penny, and the daily cash balance from [home.treasury.gov](https://home.treasury.gov/resource-center/data-chart-center/interest-rates), [TreasuryDirect](https://www.treasurydirect.gov/), and [Fiscal Data](https://fiscaldata.treasury.gov/), dumps to S3. | Job 1 |
 | `faa-aircraft-registry.py`  | Python  | Daily  | Saves the FAA's full [aircraft registry database](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download) zip (every US-registered aircraft, owner, and deregistration) whenever the FAA publishes a new release, dumps to S3. | Job 1 |
 | `tmdb-now-playing.py`  | Python  | Daily  | Collects the movies currently in US theaters from [TMDB](https://developer.themoviedb.org/reference/movie-now-playing-list)'s now playing endpoint, dumps to S3. | Job 1 |
+| `cnn-fear-greed.py`  | Python  | Daily  | Snapshots the [CNN Fear & Greed Index](https://www.cnn.com/markets/fear-and-greed) from the JSON endpoint behind the page: the headline score and rating (with previous close, 1-week, 1-month and 1-year comparisons), its seven component indicators, and about a year of daily history for each, dumps to S3. | Job 1 |
+| `ski-utah-snow-reports.py`  | Python  | Daily  | Collects the morning snow report for every Utah resort on [Ski Utah](https://www.skiutah.com/snowreport), with the 11 Wasatch Range resorts flagged: overnight, 24-hour, 48-hour and 7-day snowfall, base depth, season total, runs, lifts and parks open, hours or opening date, and the resort's comments, plus each resort's daily base depth and season snowfall so far this season, dumps to S3. | Job 7 |
 | `aaa-gas-prices.py`  | Python  | Daily  | Collects [AAA](https://gasprices.aaa.com/)'s national, state (50 + DC), metro-area, and county gas price averages by grade (current, yesterday, week, month and year ago), plus record highs, dumps to S3 under `aaa-gas-prices/`. | Job 1 |
 
 ## Inactive

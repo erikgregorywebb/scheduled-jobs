@@ -88,6 +88,11 @@ jobs:
         timeout-minutes: 10
         run: python jobs/nyc-311-requests.py
 
+      - name: run nyc-restaurant-grades
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10 # ~1 minute: a handful of paged Socrata queries
+        run: python jobs/nyc-restaurant-grades.py
+
       - name: run s3-snapshots
         if: ${{ !cancelled() }}
         timeout-minutes: 10
@@ -137,6 +142,16 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 15 # one ~73 MB download and upload; room for retries
         run: python jobs/faa-aircraft-registry.py
+
+      - name: run cnn-fear-greed
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: python jobs/cnn-fear-greed.py
+
+      - name: run lds-newsroom-rss
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: python jobs/lds-newsroom-rss.py
 
       - name: run aaa-gas-prices
         if: ${{ !cancelled() }}
