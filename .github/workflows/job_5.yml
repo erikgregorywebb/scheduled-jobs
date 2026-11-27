@@ -71,3 +71,13 @@ jobs:
 
         run: |
           python jobs/metro-north-service-alerts.py
+
+      - name: execute polymarket markets py script
+        if: ${{ !cancelled() }} # run even if an earlier script failed
+        timeout-minutes: 4 # ~60 requests, normally ~30 seconds
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+        run: |
+          python jobs/polymarket-markets.py
