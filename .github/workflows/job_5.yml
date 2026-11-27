@@ -42,3 +42,12 @@ jobs:
 
         run: |
           python jobs/citibike-station-status.py
+
+      - name: execute faa airport status py script
+        if: ${{ !cancelled() }} # run even if an earlier script failed
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+        run: |
+          python jobs/faa-airport-status.py
