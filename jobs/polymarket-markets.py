@@ -38,7 +38,13 @@ def get_page(order, offset, attempts=3):
         try:
             r = requests.get(url, params=params, timeout=60)
             if r.status_code == 200:
-                return r.json()
+                page = r.json()
+                if not isinstance(page, list):
+                    raise SystemExit(f'{order} offset {offset}: expected a list of markets, got {str(page)[:200]}')
+                return page
+            if 400 <= r.status_code < 500 and r.status_code != 429:
+                # a bad request won't fix itself on retry
+                raise SystemExit(f'{order} offset {offset}: status {r.status_code}: {r.text[:200]}')
             print(f'{order} offset {offset} attempt {attempt}: status {r.status_code}')
         except (requests.RequestException, ValueError) as e:
             print(f'{order} offset {offset} attempt {attempt}: {e}')

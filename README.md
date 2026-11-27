@@ -18,7 +18,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `zillow-scrape.r`  | R  | Daily  | Scrapes [Zillow](https://www.zillow.com/research/data/)'s basic, zipcode-level ZHVF file, dumps to S3. | Job 3 |
 | `s3-snapshots.py`  | Python  | Daily  | Saves snapshot of all files and directories within S3 bucket, dumps to S3.  | Job 1 |
 | `tsa-passenger-volumes.r`  | R  | Daily  | Scrapes daily passenger volume counts reported by the TSA, dumps to S3.  | Job 3 |
-| `mta-lift-status.r`  | R  | Daily  | Scrapes elevator and escalator status logs from NY's Metro North Railroad, dumps to S3.  | Job 3 |
+| `mta-lift-status.r`  | R  | Daily  | Scrapes elevator and escalator status logs from NY's Metro North Railroad, dumps to S3 under `mta/metro-north-lifts/`.  | Job 3 |
 | `nyc-311-requests.py`  | Python  | Daily  | Scrapes 10k of the latest NYC 311 requests, dumps to S3. | Job 1 |
 | `nyrr-races.r`  | R  | Daily  | Scrapes a list of upcoming races hosted by NYRR, dumps to S3. | Job 3 |
 | `ksl-rentals.r`  | R  | Daily  | Scrapes [KSL's](https://homes.ksl.com/rent/search) rental unit listings in Utah County, dumps to S3. | Job 3 |
@@ -27,6 +27,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `faa-airport-status.py`  | Python  | Hourly  | Snapshots the FAA's live [airport status](https://nasstatus.faa.gov/) feed: ground stops, ground delay programs, arrival/departure delays, airspace flow programs, and closures, dumps to S3. | Job 5 |
 | `citibike-station-status.py`  | Python  | Hourly  | Snapshots bikes and docks available at every Citi Bike station from the public [GBFS feed](https://gbfs.citibikenyc.com/gbfs/2.3/gbfs.json), with station name, location, and capacity, dumps to S3. | Job 5 |
 | `metro-north-trip-updates.py`  | Python  | Hourly  | Snapshots every Metro-North train in MTA's [GTFS-realtime feed](https://api.mta.info/#/subwayRealTimeFeeds) with its predicted arrival, track, and status at each upcoming stop, joined to the [static schedule](https://rrgtfsfeeds.s3.amazonaws.com/gtfsmnr.zip) for scheduled times and a computed delay, dumps to S3. | Job 5 |
+| `metro-north-service-alerts.py`  | Python  | Hourly  | Snapshots Metro-North's [GTFS-realtime service alerts](https://api.mta.info/#/serviceAlerts): live delay and cancellation notices for individual trains (with train number and cause), planned work, schedule changes, and station notices, dumps to S3. | Job 5 |
 | `open-meteo-weather-daily.py`  | Python  | Daily  | Backfills the previous day's 24 hourly weather readings for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3. | Job 6 |
 | `last-fm-history.py`  | Python  | Daily  | Collects recent listening history from the [Last.fm API](https://www.last.fm/api), dumps to S3. | Job 1 |
 | `wikipedia-daily-metrics.py`  | Python  | Daily  | Collects the previous day's most-viewed Wikipedia articles from the [Wikimedia pageviews API](https://wikimedia.org/api/rest_v1/), dumps to S3. | Job 1 |

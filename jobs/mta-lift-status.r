@@ -48,5 +48,5 @@ writeToS3 = function(file,bucket,filename){
   s3write_using(file, FUN = write.csv, bucket = bucket, object = filename)
   print(paste('Copy ', nrow(file), ' rows to S3 Bucket ', bucket, ' at ', filename, ' Done!'))
 }
-writeToS3(mnr_lifts, 'egw-data-dumps', paste('mta/mta-mnr-lifts-' , format(datetime, '%Y-%m-%d-%H-%M-%S'), '.csv', sep = ''))
+writeToS3(mnr_lifts, 'egw-data-dumps', paste('mta/metro-north-lifts/mta-mnr-lifts-' , format(datetime, '%Y-%m-%d-%H-%M-%S'), '.csv', sep = ''))
 #writeToS3(subway_lifts, 'egw-data-dumps', paste('mta/mta-subway-lifts- , format(datetime, '%Y-%m-%d-%H-%M-%S'), '.csv', sep = ''))
