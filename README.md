@@ -28,6 +28,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `open-meteo-weather-daily.py`  | Python  | Daily  | Backfills the previous day's 24 hourly weather readings for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3. | Job 6 |
 | `last-fm-history.py`  | Python  | Daily  | Collects recent listening history from the [Last.fm API](https://www.last.fm/api), dumps to S3. | Job 1 |
 | `wikipedia-daily-metrics.py`  | Python  | Daily  | Collects the previous day's most-viewed Wikipedia articles from the [Wikimedia pageviews API](https://wikimedia.org/api/rest_v1/), dumps to S3. | Job 1 |
+| `lds-meetinghouses.py`  | Python  | Daily  | Collects every [LDS meetinghouse](https://maps.churchofjesuschrist.org/) worldwide (~19,800) with address, coordinates and hours, plus the wards, stakes and other units that meet in each, dumps to S3. | Job 1 |
 | `pinal-county-parcels.py`  | Python  | Daily  | Scrapes parcel details from the Pinal County, Arizona parcel search, dumps to S3. | Job 4 |
 | `go-fund-me.py`  | Python  | Daily  | Collects stats for the first three featured fundraisers on [GoFundMe](https://www.gofundme.com/discover)'s discover page, dumps to S3. | Job 1 |
 | `travel-advisories.r`  | R  | Daily  | Collects the US State Department's [travel advisories](https://travel.state.gov/_res/rss/TAsTWs.xml) from its official RSS feed, dumps to S3. | Job 3 |
@@ -43,5 +44,3 @@ Not scheduled in any workflow.
 | ------------- | ------------- | ------------- |
 | `spotify-playlist-history.py`  | Python  | Scrapes track list for Spotify's [Rap Cavier](https://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd?si=8f0f87a0d4e04e0f) playlist, dumps to S3. |
 | `gila-buttes-parcels.r`  | R  | Scrapes details for ~280 parcels in the Gila Buttes subdivision in Casa Grande, Arizona, dumps to S3. |
-| `lds-meetinghouses-v2.r`  | R  | Scrapes [LDS meetinghouse](https://ldsmeetinghouses.com/) locations and unit assignments, dumps to S3. |
-| `lds-meetinghouses.r`  | R  | Original version of `lds-meetinghouses-v2.r`. |

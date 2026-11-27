@@ -122,3 +122,8 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 10
         run: python jobs/tmdb-now-playing.py
+
+      - name: run lds-meetinghouses
+        if: ${{ !cancelled() }}
+        timeout-minutes: 20 # one ~60-second, ~16 MB request; room for retries
+        run: python jobs/lds-meetinghouses.py
