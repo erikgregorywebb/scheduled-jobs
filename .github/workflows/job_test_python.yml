@@ -2,6 +2,11 @@ name: job_test_python
 
 on:
   workflow_dispatch: # manual runs only, from the Actions tab
+    inputs:
+      scripts:
+        description: 'Space-separated scripts in jobs/ to run, e.g. "last-fm-history.py ny-lottery-winning-numbers.py"'
+        required: true
+        default: 'wikipedia-daily-metrics.py'
 
 jobs:
   build:
@@ -35,6 +40,15 @@ jobs:
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           LAST_FM_API_KEY: ${{ secrets.LAST_FM_API_KEY }}
           NYC_OPEN_DATA_APP_TOKEN: ${{ secrets.NYC_OPEN_DATA_APP_TOKEN }}
-          
+          SCRIPTS: ${{ inputs.scripts }} # passed via env, not inlined into the shell
+
         run: |
-          python jobs/wikipedia-daily-metrics.py
+          set -e
+          for script in $SCRIPTS; do
+            case "$script" in
+              */*|..*) echo "Expected a file name in jobs/, got: $script"; exit 1 ;;
+            esac
+            echo "::group::$script"
+            python "jobs/$script"
+            echo "::endgroup::"
+          done
