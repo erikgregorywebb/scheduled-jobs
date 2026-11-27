@@ -153,6 +153,11 @@ jobs:
         timeout-minutes: 10
         run: python jobs/lds-newsroom-rss.py
 
+      - name: run aaa-gas-prices
+        if: ${{ !cancelled() }}
+        timeout-minutes: 40 # ~103 requests at robots.txt's 10-second crawl delay is ~17 minutes; room for retries
+        run: python jobs/aaa-gas-prices.py
+
       - name: run netflix-top-10
         if: ${{ !cancelled() }}
         timeout-minutes: 10 # ~35 MB of downloads when Netflix has a new weekly release (the all-countries file, filtered to the US); a few seconds otherwise
