@@ -40,6 +40,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `treasury-daily.py`  | Python  | Daily  | Collects US Treasury yield curves, auction results and upcoming auctions, Debt to the Penny, and the daily cash balance from [home.treasury.gov](https://home.treasury.gov/resource-center/data-chart-center/interest-rates), [TreasuryDirect](https://www.treasurydirect.gov/), and [Fiscal Data](https://fiscaldata.treasury.gov/), dumps to S3. | Job 1 |
 | `faa-aircraft-registry.py`  | Python  | Daily  | Saves the FAA's full [aircraft registry database](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download) zip (every US-registered aircraft, owner, and deregistration) whenever the FAA publishes a new release, dumps to S3. | Job 1 |
 | `tmdb-now-playing.py`  | Python  | Daily  | Collects the movies currently in US theaters from [TMDB](https://developer.themoviedb.org/reference/movie-now-playing-list)'s now playing endpoint, dumps to S3. | Job 1 |
+| `cnn-fear-greed.py`  | Python  | Daily  | Snapshots the [CNN Fear & Greed Index](https://www.cnn.com/markets/fear-and-greed) from the JSON endpoint behind the page: the headline score and rating (with previous close, 1-week, 1-month and 1-year comparisons), its seven component indicators, and about a year of daily history for each, dumps to S3. | Job 1 |
 
 ## Inactive
 
