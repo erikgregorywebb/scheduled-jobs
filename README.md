@@ -36,6 +36,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `travel-advisories.r`  | R  | Daily  | Collects the US State Department's [travel advisories](https://travel.state.gov/_res/rss/TAsTWs.xml) from its official RSS feed, dumps to S3. | Job 3 |
 | `ny-lottery-winning-numbers.py`  | Python  | Daily  | Collects the latest draws, winning numbers, and NY prize/winner counts for each draw game from the [NY Lottery](https://nylottery.ny.gov/all-winning-numbers), dumps to S3. | Job 1 |
 | `treasury-daily.py`  | Python  | Daily  | Collects US Treasury yield curves, auction results and upcoming auctions, Debt to the Penny, and the daily cash balance from [home.treasury.gov](https://home.treasury.gov/resource-center/data-chart-center/interest-rates), [TreasuryDirect](https://www.treasurydirect.gov/), and [Fiscal Data](https://fiscaldata.treasury.gov/), dumps to S3. | Job 1 |
+| `faa-aircraft-registry.py`  | Python  | Daily  | Saves the FAA's full [aircraft registry database](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download) zip (every US-registered aircraft, owner, and deregistration) whenever the FAA publishes a new release, dumps to S3. | Job 1 |
 | `tmdb-now-playing.py`  | Python  | Daily  | Collects the movies currently in US theaters from [TMDB](https://developer.themoviedb.org/reference/movie-now-playing-list)'s now playing endpoint, dumps to S3. | Job 1 |
 
 ## Inactive
