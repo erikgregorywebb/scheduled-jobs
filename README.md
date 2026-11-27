@@ -22,6 +22,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `ksl-rentals.r`  | R  | Daily  | Scrapes [KSL's](https://homes.ksl.com/rent/search) rental unit listings in Utah County, dumps to S3. | Job 3 |
 | `hacker-news.r`  | R  | Daily  | Scrapes the first ten pages of YC's [Hacker News](https://news.ycombinator.com/news?p=1), dumps to S3. | Job 3 |
 | `open-meteo-weather-hourly.py`  | Python  | Hourly  | Collects current weather conditions for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3. | Job 5 |
+| `citibike-station-status.py`  | Python  | Hourly  | Snapshots bikes and docks available at every Citi Bike station from the public [GBFS feed](https://gbfs.citibikenyc.com/gbfs/2.3/gbfs.json), with station name, location, and capacity, dumps to S3. | Job 5 |
 | `open-meteo-weather-daily.py`  | Python  | Daily  | Backfills the previous day's 24 hourly weather readings for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3. | Job 6 |
 | `last-fm-history.py`  | Python  | Daily  | Collects recent listening history from the [Last.fm API](https://www.last.fm/api), dumps to S3. | Job 1 |
 | `wikipedia-daily-metrics.py`  | Python  | Daily  | Collects the previous day's most-viewed Wikipedia articles from the [Wikimedia pageviews API](https://wikimedia.org/api/rest_v1/), dumps to S3. | Job 1 |
@@ -29,6 +30,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `go-fund-me.py`  | Python  | Daily  | Collects stats for the first three featured fundraisers on [GoFundMe](https://www.gofundme.com/discover)'s discover page, dumps to S3. | Job 1 |
 | `travel-advisories.r`  | R  | Daily  | Collects the US State Department's [travel advisories](https://travel.state.gov/_res/rss/TAsTWs.xml) from its official RSS feed, dumps to S3. | Job 3 |
 | `ny-lottery-winning-numbers.py`  | Python  | Daily  | Collects the latest draws, winning numbers, and NY prize/winner counts for each draw game from the [NY Lottery](https://nylottery.ny.gov/all-winning-numbers), dumps to S3. | Job 1 |
+| `treasury-daily.py`  | Python  | Daily  | Collects US Treasury yield curves, auction results and upcoming auctions, Debt to the Penny, and the daily cash balance from [home.treasury.gov](https://home.treasury.gov/resource-center/data-chart-center/interest-rates), [TreasuryDirect](https://www.treasurydirect.gov/), and [Fiscal Data](https://fiscaldata.treasury.gov/), dumps to S3. | Job 1 |
 | `tmdb-now-playing.py`  | Python  | Daily  | Collects the movies currently in US theaters from [TMDB](https://developer.themoviedb.org/reference/movie-now-playing-list)'s now playing endpoint, dumps to S3. | Job 1 |
 
 ## Inactive

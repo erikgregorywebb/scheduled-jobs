@@ -54,4 +54,5 @@ jobs:
           python jobs/wikipedia-daily-metrics.py
           python jobs/go-fund-me.py
           python jobs/ny-lottery-winning-numbers.py
+          python jobs/treasury-daily.py
           python jobs/tmdb-now-playing.py
