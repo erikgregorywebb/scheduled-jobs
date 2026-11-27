@@ -38,5 +38,6 @@ Not scheduled in any workflow.
 | ------------- | ------------- | ------------- |
 | `spotify-playlist-history.py`  | Python  | Scrapes track list for Spotify's [Rap Cavier](https://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd?si=8f0f87a0d4e04e0f) playlist, dumps to S3. |
 | `gila-buttes-parcels.r`  | R  | Scrapes details for ~280 parcels in the Gila Buttes subdivision in Casa Grande, Arizona, dumps to S3. |
+| `tmdb-now-playing.py`  | Python  | Collects the movies currently in US theaters from [TMDB](https://developer.themoviedb.org/reference/movie-now-playing-list)'s now playing endpoint, dumps to S3. Needs a `TMDB_API_KEY` secret before scheduling. |
 | `lds-meetinghouses-v2.r`  | R  | Scrapes [LDS meetinghouse](https://ldsmeetinghouses.com/) locations and unit assignments, dumps to S3. |
 | `lds-meetinghouses.r`  | R  | Original version of `lds-meetinghouses-v2.r`. |
