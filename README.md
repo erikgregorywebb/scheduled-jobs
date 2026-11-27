@@ -20,6 +20,7 @@ Scheduled to run by the GitHub Actions workflow named in the Job column.
 | `tsa-passenger-volumes.r`  | R  | Daily  | Scrapes daily passenger volume counts reported by the TSA, dumps to S3.  | Job 3 |
 | `mta-lift-status.r`  | R  | Daily  | Scrapes elevator and escalator status logs from NY's Metro North Railroad, dumps to S3 under `mta/metro-north-lifts/`.  | Job 3 |
 | `nyc-311-requests.py`  | Python  | Daily  | Scrapes 10k of the latest NYC 311 requests, dumps to S3. | Job 1 |
+| `nyc-restaurant-grades.py`  | Python  | Daily  | Snapshots every restaurant in NYC DOHMH's [restaurant inspection results](https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j) (~31,500) with its current and previous letter grade, score, and inspection dates, so grade changes show up between snapshots, dumps to S3. | Job 1 |
 | `nyrr-races.r`  | R  | Daily  | Scrapes a list of upcoming races hosted by NYRR, dumps to S3. | Job 3 |
 | `ksl-rentals.r`  | R  | Daily  | Scrapes [KSL's](https://homes.ksl.com/rent/search) rental unit listings in Utah County, dumps to S3. | Job 3 |
 | `hacker-news.r`  | R  | Daily  | Scrapes the first ten pages of YC's [Hacker News](https://news.ycombinator.com/news?p=1), dumps to S3. | Job 3 |
