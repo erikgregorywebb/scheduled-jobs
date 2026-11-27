@@ -30,4 +30,4 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       
       run: |
-        Rscript .github/diagnostics/travel-advisories-check.r
+        echo "No R script under test. Replace this line with: Rscript jobs/<script>.r"
