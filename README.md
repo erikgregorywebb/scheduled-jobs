@@ -23,3 +23,4 @@
 | `travel-advisories.r`  | R  | Daily  | Scrapes the US State Department's [travel advisory](https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html/) list, dumps to S3. | Job 3 |
 | `hacker-news.r`  | R  | Daily  | Scrapes the first ten pages of YC's [Hacker News](https://news.ycombinator.com/news?p=1), dumps to S3. | Job 3 |
 | `open-meteo-weather.py`  | Python  | Hourly  | Collects current weather conditions for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3. | Job 5 |
+| `open-meteo-weather-daily.py`  | Python  | Daily  | Backfills the previous day's 24 hourly weather readings for Scarsdale, NY from [Open-Meteo](https://open-meteo.com/), dumps to S3. | Job 6 |
