@@ -93,6 +93,9 @@ def to_price(text):
     if text in ('', 'N/A', '--'):
         return None
     price = float(text)
+    if price == 0:
+        # AAA shows $0.0000 for a metro, county or grade it has no data for (seen in IL, MN, WA, WI)
+        return None
     if not 0.5 < price < 20:
         raise ValueError(f'implausible price: {text}')
     return price
