@@ -9,12 +9,13 @@ import time
 # Collects every meetinghouse and the units (wards, stakes, FamilySearch centers, ...) that meet there
 # from the Meetinghouse Locator at https://maps.churchofjesuschrist.org/.
 #
-# Replaces lds-meetinghouses-v2.r, whose endpoint and session token stopped working in January 2025.
+# Replaces two earlier R scripts (see git history); the last one's endpoint and session token
+# stopped working in January 2025.
 # The locator's "identify" endpoint returns the nearest N meetinghouses to a point, with full details;
 # asking for more than exist returns all of them (~19,800 in Nov 2026) in one ~60-second, ~16 MB call.
 # No token or cookies are needed.
 #
-# Output (one pair of files per run):
+# Output (one pair of files per run; the v3/ prefix keeps this layout apart from the older R scripts' files):
 #   lds-meetinghouses/v3/meetinghouses-<datetime>.csv  one row per meetinghouse
 #   lds-meetinghouses/v3/associations-<datetime>.csv   one row per unit meeting at a meetinghouse
 
