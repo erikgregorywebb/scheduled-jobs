@@ -127,6 +127,6 @@ else:
         print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
 
     copy_to_s3(client=s3, df=df_draws, bucket='egw-data-dumps',
-               filepath='ny-lottery-draws/ny-lottery-draws-' + current_datetime_label + '.csv')
+               filepath='ny-lottery/ny-lottery-draws-' + current_datetime_label + '.csv')
     copy_to_s3(client=s3, df=df_prizes, bucket='egw-data-dumps',
-               filepath='ny-lottery-prizes/ny-lottery-prizes-' + current_datetime_label + '.csv')
+               filepath='ny-lottery/ny-lottery-prizes-' + current_datetime_label + '.csv')
