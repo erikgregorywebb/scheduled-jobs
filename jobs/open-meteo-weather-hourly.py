@@ -87,5 +87,5 @@ def copy_to_s3(client, df, bucket, filepath):
     client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
     print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
 
-file_path = 'weather/hourly/open-meteo-weather-' + current_datetime_label + '.csv'
+file_path = 'weather/hourly/open-meteo-weather-hourly-' + current_datetime_label + '.csv'
 copy_to_s3(client=s3, df=df, bucket='egw-data-dumps', filepath=file_path)

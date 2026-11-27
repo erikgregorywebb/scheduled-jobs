@@ -7,7 +7,7 @@ from io import StringIO
 import os
 import time
 
-# daily backfill for open-meteo-weather.py: saves yesterday's 24 hourly
+# daily backfill for open-meteo-weather-hourly.py: saves yesterday's 24 hourly
 # readings so hours missed by the hourly job (failed or skipped runs) can be filled
 
 # location: Scarsdale, NY, rounded to 2 decimals (~1 km), same as the hourly job
