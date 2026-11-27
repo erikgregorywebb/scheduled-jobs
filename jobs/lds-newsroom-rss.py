@@ -1,14 +1,11 @@
 import requests
 import pandas as pd
-from datetime import datetime
-import boto3
-from io import StringIO
 from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
-import os
 import re
-import time
+
+from common import RUN_DATETIME, RUN_LABEL, get, save_csv
 
 # Collects the 25 latest press releases and announcements from the official RSS feed of the
 # Church of Jesus Christ of Latter-day Saints' Newsroom, https://newsroom.churchofjesuschrist.org/rss.
@@ -21,14 +18,6 @@ import time
 #
 # Output: lds-newsroom/lds-newsroom-rss-<datetime>.csv, one row per article.
 
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-# get current date and datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-
 # settings
 URL = 'https://newsroom.churchofjesuschrist.org/rss'
 SITE = 'https://newsroom.churchofjesuschrist.org/'
@@ -36,27 +25,15 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
     'Accept': 'application/rss+xml, application/xml, text/xml, */*',
 }
-BUCKET = 'egw-data-dumps'
 PREFIX = 'lds-newsroom/'
 # the feed always lists 25 items; far fewer means a truncated or broken response
 MIN_ITEMS = 10
 
 # download, retrying transient failures and fast-failing other 4xx
-xml = None
-for attempt in range(1, 4):
-    try:
-        r = requests.get(URL, headers=HEADERS, timeout=60)
-        if r.status_code == 200:
-            xml = r.content
-            break
-        if r.status_code < 500 and r.status_code != 429:
-            raise SystemExit(f'Request failed with status {r.status_code}: {r.text[:200]}')
-        print(f'Attempt {attempt}: status {r.status_code}')
-    except requests.RequestException as e:
-        print(f'Attempt {attempt}: {e}')
-    time.sleep(20 * attempt)
-if xml is None:
-    raise SystemExit('Newsroom RSS request failed after 3 attempts')
+try:
+    xml = get(URL, headers=HEADERS, timeout=60, delays=(20, 40), name='Newsroom RSS').content
+except requests.HTTPError as e:
+    raise SystemExit(f'Request failed with status {e.response.status_code}: {e.response.text[:200]}')
 
 root = ET.fromstring(xml)
 items = root.findall('./channel/item')
@@ -90,7 +67,7 @@ for item in items:
         display_date.strip() if display_date else None,
         summary,
         image_url,
-        current_datetime,
+        RUN_DATETIME,
     ])
 
 df = pd.DataFrame(rows, columns=[
@@ -98,13 +75,4 @@ df = pd.DataFrame(rows, columns=[
 ])
 print(f"{len(df)} articles, {df['pub_date'].min()} to {df['pub_date'].max()}; latest: {df['title'].iloc[0]}")
 
-# copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-copy_to_s3(client=s3, df=df, bucket=BUCKET, filepath=PREFIX + 'lds-newsroom-rss-' + current_datetime_label + '.csv')
+save_csv(df, PREFIX + 'lds-newsroom-rss-' + RUN_LABEL + '.csv')

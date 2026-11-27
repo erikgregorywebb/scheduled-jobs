@@ -1,12 +1,8 @@
-import requests
 import pandas as pd
-from datetime import datetime
 import xml.etree.ElementTree as ET
-import boto3
-from io import StringIO
 import json
-import time
-import os
+
+from common import RUN_DATETIME, RUN_LABEL, get, save_csv
 
 # Snapshots the FAA's live National Airspace System status: every airport or
 # airspace currently under a ground stop, ground delay program, arrival/departure
@@ -63,16 +59,7 @@ def flatten(item):
     return row
 
 # get the feed, retrying transient failures
-for attempt in range(3):
-    try:
-        response = requests.get(URL, headers=HEADERS, timeout=30)
-        response.raise_for_status()
-        break
-    except requests.RequestException as e:
-        if attempt == 2:
-            raise
-        print(f'Attempt {attempt + 1} failed ({e}), retrying')
-        time.sleep(15 * (attempt + 1))
+response = get(URL, headers=HEADERS, timeout=30, delays=(15, 30), name='Airport status')
 
 root = ET.fromstring(response.content)
 feed_update_time = root.findtext('Update_Time')
@@ -89,34 +76,14 @@ for delay_type in root.findall('Delay_type'):
             row['feed_update_time'] = feed_update_time
             rows.append(row)
 
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-
 df = pd.DataFrame(rows)
 extra = [c for c in df.columns if c not in COLUMNS]
 df = df.reindex(columns=COLUMNS + extra)
-df['datetime'] = current_datetime
+df['datetime'] = RUN_DATETIME
 print(f'Feed updated {feed_update_time}: {len(df)} restrictions',
       df['delay_type'].value_counts().to_dict() if len(df) else '')
 
-if os.environ.get('DRY_RUN'):
-    # local check without touching S3: DRY_RUN=1 python jobs/faa-airport-status.py
-    df.to_csv('faa-airport-status.csv', index=False)
-    print('Dry run: wrote faa-airport-status.csv')
-else:
-    # get environmental variables
-    AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-    AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-    # copy to s3; a file is written even with zero restrictions, so a quiet hour
-    # can be told apart from a missed run
-    s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-    def copy_to_s3(client, df, bucket, filepath):
-        csv_buf = StringIO()
-        df.to_csv(csv_buf, header=True, index=False)
-        csv_buf.seek(0)
-        client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-        print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-    file_path = 'faa-airport-status/faa-airport-status-' + current_datetime_label + '.csv'
-    copy_to_s3(client=s3, df=df, bucket='egw-data-dumps', filepath=file_path)
+# a file is written even with zero restrictions, so a quiet hour can be told
+# apart from a missed run
+file_path = 'faa-airport-status/faa-airport-status-' + RUN_LABEL + '.csv'
+save_csv(df, file_path)

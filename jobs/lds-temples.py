@@ -1,13 +1,9 @@
-import requests
 import pandas as pd
-from datetime import datetime
-import boto3
-from io import StringIO
 from concurrent.futures import ThreadPoolExecutor
 import json
-import os
 import re
-import time
+
+from common import RUN_DATETIME, RUN_LABEL, get as http_get, save_csv
 
 # Collects every LDS temple (operating, under renovation, opening soon, under construction and announced)
 # from three public sources on churchofjesuschrist.org. No token or cookies are needed.
@@ -22,14 +18,6 @@ import time
 #   lds-temples/temples-<datetime>.csv     one row per temple
 #   lds-temples/milestones-<datetime>.csv  one row per temple milestone
 #   lds-temples/closures-<datetime>.csv    one row per upcoming closure of an operating temple
-
-# get environmental variables
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-
-# get current date and datetime
-current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
 LIST_URL = 'https://www.churchofjesuschrist.org/temples/list'
 DETAILS_URL = 'https://www.churchofjesuschrist.org/temples/details/{}'
@@ -48,17 +36,15 @@ MAX_DETAIL_FAILURE_SHARE = 0.05
 # details pages fetched at once; enough to finish in a few minutes without hammering the site
 DETAIL_WORKERS = 4
 
+# returns None when the request still fails after retries (or hits a non-retryable 4xx),
+# so callers can decide whether one failure is fatal
 def fetch(url, params=None, extra_headers=None, attempts=3, timeout=60):
-    for attempt in range(1, attempts + 1):
-        try:
-            r = requests.get(url, params=params, headers={**headers, **(extra_headers or {})}, timeout=timeout)
-            if r.status_code == 200:
-                return r
-            print(f'{url} attempt {attempt}: status {r.status_code}')
-        except requests.RequestException as e:
-            print(f'{url} attempt {attempt}: {e}')
-        time.sleep(10 * attempt)
-    return None
+    try:
+        return http_get(url, params=params, headers={**headers, **(extra_headers or {})}, timeout=timeout,
+                        delays=[10 * a for a in range(1, attempts)])
+    except Exception as e:
+        print(f'{url}: {e}')
+        return None
 
 def next_data(html):
     # the page props Next.js embeds in every page
@@ -126,7 +112,7 @@ for t, props in zip(temple_list, details):
             'milestone': m.get('milestone'),
             'date_text': m.get('date'),
             'date': m.get('dedicationDate') or to_date(m.get('date')),
-            'scraped_at': current_datetime,
+            'scraped_at': RUN_DATETIME,
         })
 print(f'Fetched {len(temple_list) - len(failed)} details pages; {len(failed)} failed: {failed}')
 if len(failed) > MAX_DETAIL_FAILURE_SHARE * len(temple_list):
@@ -183,7 +169,7 @@ for t in temple_list:
         'hours': get(loc, 'hours', 'code'),
         'time_zone': get(loc, 'timeZone', 'id'),
         'website': loc.get('website') or f'https://www.churchofjesuschrist.org/temples/details/{t.get("templeNameId")}',
-        'scraped_at': current_datetime,
+        'scraped_at': RUN_DATETIME,
     })
     for event in loc.get('events') or []:
         for d in event.get('dates') or []:
@@ -195,7 +181,7 @@ for t in temple_list:
                 'start_date': get(d, 'start', 'code'),
                 'end_date': get(d, 'end', 'code'),
                 'display': d.get('display'),
-                'scraped_at': current_datetime,
+                'scraped_at': RUN_DATETIME,
             })
 
 temples = pd.DataFrame(temples).astype({'unit_number': 'Int64', 'property_id': 'Int64'})
@@ -204,15 +190,6 @@ closures = pd.DataFrame(closures)
 print(f'Parsed {len(temples)} temples ({temples["status"].value_counts().to_dict()}), '
       f'{len(milestones)} milestones and {len(closures)} closures')
 
-# copy to s3
-s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-def copy_to_s3(client, df, bucket, filepath):
-    csv_buf = StringIO()
-    df.to_csv(csv_buf, header=True, index=False)
-    csv_buf.seek(0)
-    client.put_object(Bucket=bucket, Body=csv_buf.getvalue(), Key=filepath)
-    print(f'Copy {df.shape[0]} rows to S3 Bucket {bucket} at {filepath}, Done!')
-
-copy_to_s3(client=s3, df=temples, bucket='egw-data-dumps', filepath='lds-temples/temples-' + current_datetime_label + '.csv')
-copy_to_s3(client=s3, df=milestones, bucket='egw-data-dumps', filepath='lds-temples/milestones-' + current_datetime_label + '.csv')
-copy_to_s3(client=s3, df=closures, bucket='egw-data-dumps', filepath='lds-temples/closures-' + current_datetime_label + '.csv')
+save_csv(temples, 'lds-temples/temples-' + RUN_LABEL + '.csv')
+save_csv(milestones, 'lds-temples/milestones-' + RUN_LABEL + '.csv')
+save_csv(closures, 'lds-temples/closures-' + RUN_LABEL + '.csv')
