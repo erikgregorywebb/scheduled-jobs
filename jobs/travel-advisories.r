@@ -15,6 +15,27 @@ feed = read_xml(content(res, as = 'text', encoding = 'UTF-8'))
 items = xml_find_all(feed, '//item')
 if (length(items) == 0) stop('Travel advisory feed returned no items')
 
+# feed names mapped back to the names used in files saved from the old HTML table,
+# so destinations line up across the history. Not mapped: Israel, Gaza and The West
+# Bank (one combined entry before) and Saba and Sint Eustatius (listed differently before).
+name_map = c(
+  'Burma' = 'Burma (Myanmar)',
+  'Côte d’Ivoire' = "Côte d'Ivoire (Ivory-Coast)",
+  'Democratic Republic of the Congo' = 'Democratic Republic of the Congo (D.R.C.)',
+  'Eswatini' = 'Eswatini (Swaziland)',
+  'French Saint Martin' = 'Saint Martin (French West Indies)',
+  'Guadeloupe' = 'Guadeloupe (French West Indies)',
+  'Martinique' = 'Martinique (French West Indies)',
+  'Naoero' = 'Nauru',
+  'North Korea' = "North Korea (Democratic People's Republic of Korea)",
+  'North Macedonia' = 'Republic of North Macedonia',
+  'Republic of Congo' = 'Republic of the Congo',
+  'Saint Barthelemy' = 'Saint Barthélemy (French West Indies)',
+  'São Tomé and Príncipe' = 'Sao Tome and Principe',
+  'The Bahamas' = 'Bahamas',
+  'United Kingdom' = 'United Kingdom of Great Britain and Northern Ireland'
+)
+
 # clean: titles look like "Afghanistan - Level 4: Do Not Travel"
 table = tibble(
     title = xml_text(xml_find_first(items, 'title')),
@@ -22,7 +43,8 @@ table = tibble(
     pub_date = xml_text(xml_find_first(items, 'pubDate'))
   ) %>%
   mutate(
-    advisory = str_trim(str_remove(title, '\\s+-\\s+Level\\s+\\d.*$')),
+    advisory = str_trim(str_remove(str_remove(title, '\\s+-\\s+Level\\s+\\d.*$'), '\\s+Travel Advisory$')),
+    advisory = coalesce(unname(name_map[advisory]), advisory),
     # sentence case, e.g. "Level 4: Do not travel", to match files saved from the old HTML table
     level = paste0(str_extract(title, 'Level\\s+\\d'), ': ', str_to_sentence(str_trim(str_extract(title, '(?<=Level\\s\\d:).*$')))),
     date_updated = as_date(dmy(str_remove(pub_date, '^[A-Za-z]+,\\s*'))),
