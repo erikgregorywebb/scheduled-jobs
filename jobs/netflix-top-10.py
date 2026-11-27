@@ -14,7 +14,9 @@ import os
 # with every value kept exactly as published (read as text, so nothing is reformatted).
 #   all-weeks-global.tsv     every week since 2021-07-04: top 10 films/TV, English and non-English,
 #                            with hours viewed, runtime, views and weeks in the top 10
-#   all-weeks-countries.tsv  every week since 2021-07-04: top 10 films and TV in each of ~95 countries
+#   all-weeks-countries.tsv  every week since 2021-07-04: top 10 films and TV in each of ~95 countries;
+#                            only the United States rows are kept (saved as united-states/), since
+#                            Netflix has no per-country download
 #   most-popular.tsv         the all-time most popular titles by views in their first 91 days;
 #                            overwritten in place, so these copies are its only history
 # Netflix publishes once a week, on Tuesday afternoons (US time), for the week ending the
@@ -28,6 +30,8 @@ HEADERS = {'User-Agent': 'Mozilla/5.0 (compatible; scheduled-jobs data collector
 BUCKET = 'egw-data-dumps'
 PREFIX = 'netflix-top-10/'
 CATEGORIES_GLOBAL = {'Films (English)', 'Films (Non-English)', 'TV (English)', 'TV (Non-English)'}
+COUNTRY = 'US'  # the one country kept from all-weeks-countries
+SAVED_AS = {'all-weeks-countries': 'united-states'}  # S3 name, where it differs from Netflix's
 
 # name: (expected header, week column or None, minimum data rows)
 FILES = {
@@ -113,7 +117,8 @@ for name in FILES:
         source_time = datetime.now(timezone.utc)
         print(f'{name}: no Last-Modified header; naming the file after the download time')
     # named after when Netflix last updated the file (UTC)
-    file_path = (PREFIX + name + '/netflix-top-10-' + name + '-'
+    saved_name = SAVED_AS.get(name, name)
+    file_path = (PREFIX + saved_name + '/netflix-top-10-' + saved_name + '-'
                  + source_time.strftime('%Y-%m-%d-%H-%M-%S') + '.csv')
 
     if not dry_run:
@@ -141,11 +146,19 @@ for name in FILES:
                      quoting=csv.QUOTE_NONE, encoding='utf-8')
     if df.shape[0] != n_rows or list(df.columns) != FILES[name][0]:
         raise RuntimeError(f'{name}: TSV parsed to {df.shape}, expected {n_rows} rows')
+    if name == 'all-weeks-countries':
+        # the whole file was checked above; keep just the US, which should have the latest week's
+        # top 10 films and top 10 TV
+        df = df[df['country_iso2'] == COUNTRY]
+        latest_us = df[df['week'] == latest_week]
+        if len(latest_us) != 20 or set(latest_us['category']) != {'Films', 'TV'}:
+            raise RuntimeError(f'{name}: {COUNTRY} has {len(latest_us)} rows for week {latest_week}, expected 20')
+        n_rows = df.shape[0]
     body = df.to_csv(index=False).encode('utf-8')
     summary = f'{n_rows:,} rows' + (f', latest week {latest_week}' if latest_week else '')
 
     if dry_run:
-        print(f'Dry run: would save {name} ({summary}, {len(content):,} bytes, '
+        print(f'Dry run: would save {saved_name} ({summary}, {len(content):,} bytes, '
               f'{len(body):,} as CSV) to {file_path}')
         continue
 
@@ -162,4 +175,4 @@ for name in FILES:
             },
         },
     )
-    print(f'Copy {name} ({summary}) to S3 Bucket {BUCKET} at {file_path}, Done!')
+    print(f'Copy {saved_name} ({summary}) to S3 Bucket {BUCKET} at {file_path}, Done!')

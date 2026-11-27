@@ -155,5 +155,5 @@ jobs:
 
       - name: run netflix-top-10
         if: ${{ !cancelled() }}
-        timeout-minutes: 10 # ~35 MB of downloads when Netflix has a new weekly release; a few seconds otherwise
+        timeout-minutes: 10 # ~35 MB of downloads when Netflix has a new weekly release (the all-countries file, filtered to the US); a few seconds otherwise
         run: python jobs/netflix-top-10.py
