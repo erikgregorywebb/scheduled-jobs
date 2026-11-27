@@ -127,3 +127,8 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 20 # one ~60-second, ~16 MB request; room for retries
         run: python jobs/lds-meetinghouses.py
+
+      - name: run lds-temples
+        if: ${{ !cancelled() }}
+        timeout-minutes: 20 # ~385 details pages, 4 at a time; room for retries
+        run: python jobs/lds-temples.py
