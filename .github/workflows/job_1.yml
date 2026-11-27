@@ -162,3 +162,8 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 10 # ~35 MB of downloads when Netflix has a new weekly release (the all-countries file, filtered to the US); a few seconds otherwise
         run: python jobs/netflix-top-10.py
+
+      - name: run billboard-hot-100
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10 # one ~3 MB page; saves only when Billboard publishes a new weekly chart
+        run: python jobs/billboard-hot-100.py
