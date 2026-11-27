@@ -4,6 +4,7 @@ from datetime import datetime
 import boto3
 from io import StringIO
 import os
+import time
 
 # location: Scarsdale, NY, rounded to 2 decimals (~1 km); Open-Meteo's
 # finest US model (HRRR) is a ~3 km grid, so extra precision adds nothing
@@ -11,7 +12,7 @@ LATITUDE = 40.99
 LONGITUDE = -73.80
 TIMEZONE = 'America/New_York'
 
-# variables collected for both current conditions and the hourly forecast
+# current-condition variables to collect
 VARIABLES = [
     'temperature_2m',
     'relative_humidity_2m',
@@ -26,36 +27,43 @@ VARIABLES = [
     'wind_speed_10m',
     'wind_direction_10m',
     'wind_gusts_10m',
+    'is_day',
 ]
-HOURLY_ONLY = ['precipitation_probability', 'visibility', 'uv_index']
 
-# request current conditions plus the next 48 hours of hourly forecasts
+# request current conditions, retrying transient failures with backoff
 url = 'https://api.open-meteo.com/v1/forecast'
 params = {
     'latitude': LATITUDE,
     'longitude': LONGITUDE,
     'timezone': TIMEZONE,
     'current': ','.join(VARIABLES),
-    'hourly': ','.join(VARIABLES + HOURLY_ONLY),
-    'forecast_hours': 48,
     'temperature_unit': 'fahrenheit',
     'wind_speed_unit': 'mph',
     'precipitation_unit': 'inch',
 }
-response = requests.get(url, params=params, timeout=30)
-response.raise_for_status()
-data = response.json()
+RETRY_DELAYS = [10, 30, 60]  # seconds to wait before each retry
+for attempt in range(len(RETRY_DELAYS) + 1):
+    try:
+        response = requests.get(url, params=params, timeout=30)
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        error = e
+    else:
+        if response.status_code < 500 and response.status_code != 429:
+            response.raise_for_status()  # other 4xx means a bad request: fail fast
+            data = response.json()
+            break
+        error = f'HTTP {response.status_code}'
+    if attempt == len(RETRY_DELAYS):
+        raise RuntimeError(f'Open-Meteo request failed after {attempt + 1} attempts: {error}')
+    print(f'Attempt {attempt + 1} failed ({error}), retrying in {RETRY_DELAYS[attempt]}s')
+    time.sleep(RETRY_DELAYS[attempt])
 
 # get current datetime
 current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 current_datetime_label = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
-# one row for current conditions, one row per forecast hour
-current = pd.DataFrame([data['current']]).drop(columns=['interval'], errors='ignore')
-current.insert(0, 'kind', 'current')
-hourly = pd.DataFrame(data['hourly'])
-hourly.insert(0, 'kind', 'forecast')
-df = pd.concat([current, hourly], ignore_index=True)
+# one row of current conditions
+df = pd.DataFrame([data['current']])
 
 # add request metadata
 df['latitude'] = LATITUDE
