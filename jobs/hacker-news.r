@@ -16,15 +16,17 @@ for (i in 1:length(urls)) {
   if (is.null(page)) next
   objects = page %>% html_nodes('.athing')
   subtexts = page %>% html_nodes('.subtext')
-  for (j in 1:length(objects)) {
+  # html_node (not html_nodes) returns NA for a missing field instead of an empty
+  # vector, which would otherwise shrink the whole row to zero rows
+  for (j in seq_along(objects)) {
     id = try(objects[j] %>% html_attr('id') %>% as.numeric())
-    rank = try(objects[j] %>%html_node('.rank') %>% html_text() %>% as.numeric())
+    rank = try(objects[j] %>% html_node('.rank') %>% html_text() %>% parse_number())
     title = try(objects[j] %>% html_node('.titleline a') %>% html_text())
     link = try(objects[j] %>% html_node('.titleline a') %>% html_attr("href"))
-    points = try(subtexts[j] %>% html_nodes('.score') %>% html_text())
-    author = try(subtexts[j] %>% html_nodes('.hnuser') %>% html_text())
-    time_label = try(subtexts[j] %>% html_nodes('.age a') %>% html_text())
-    comment_count = try(subtexts[j] %>% html_nodes('a:nth-last-child(1)') %>% html_text() %>% last())
+    points = try(subtexts[j] %>% html_node('.score') %>% html_text())
+    author = try(subtexts[j] %>% html_node('a[href^="user?id="]') %>% html_text())
+    time_label = try(subtexts[j] %>% html_node('.age a') %>% html_text())
+    comment_count = try(subtexts[j] %>% html_nodes('a') %>% html_text() %>% str_subset('comment|discuss') %>% last())
     temp = tibble(id = id, rank = rank, title = title, link = link, points = points, author = author,
                   time_label = time_label, comment_count = comment_count, source_url = urls[i], scraped_at = datetime)
     datalist[[k]] = temp
@@ -32,10 +34,11 @@ for (i in 1:length(urls)) {
   }
 }
 table = do.call(rbind, datalist)
+if (is.null(table) || nrow(table) == 0) stop('No Hacker News stories found; the page markup may have changed')
 
 # export
 writeToS3 = function(file,bucket,filename){
   s3write_using(file, FUN = write.csv, bucket = bucket, object = filename)
-  print(paste('Copy ', nrow(df), ' rows to S3 Bucket ', bucket, ' at ', filename, ' Done!'))
+  print(paste('Copy ', nrow(file), ' rows to S3 Bucket ', bucket, ' at ', filename, ' Done!'))
 }
 writeToS3(table, 'egw-data-dumps', paste('hacker-news/hacker-news-' , format(datetime, '%Y-%m-%d-%H-%M-%S'), '.csv', sep = ''))
